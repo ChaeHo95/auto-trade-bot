@@ -6,16 +6,12 @@ import com.example.autotradebot.mapper.binance.*;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.HttpStatus;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.math.BigInteger;
 import java.time.Instant;
@@ -31,74 +27,50 @@ public class BinanceHistoryService {
     private final BinanceTradeMapper tradeMapper;
     private final BinanceFundingRateMapper fundingRateMapper;
     private final BinanceAggTradeMapper aggTradeMapper;
-    private final String binanceApiUrl;
+    private final WebClient webClient;
 
     @Autowired
     public BinanceHistoryService(BinanceConfig binanceConfig, BinanceKlineMapper klineMapper,
                                  BinanceTickerMapper tickerMapper, BinanceTradeMapper tradeMapper,
-                                 BinanceFundingRateMapper fundingRateMapper, BinanceAggTradeMapper aggTradeMapper) {
+                                 BinanceFundingRateMapper fundingRateMapper, BinanceAggTradeMapper aggTradeMapper,
+                                 WebClient.Builder webClientBuilder) {
         this.klineMapper = klineMapper;
         this.tickerMapper = tickerMapper;
         this.tradeMapper = tradeMapper;
         this.fundingRateMapper = fundingRateMapper;
         this.aggTradeMapper = aggTradeMapper;
-        this.binanceApiUrl = binanceConfig.getBinanceApiUri();
+        this.webClient = webClientBuilder.baseUrl(binanceConfig.getBinanceApiUri()).build();
+
+    }
+
+
+    /**
+     * ✅ 기존 checkAndFetchMissingData 메소드에서 Funding Rate 추가
+     */
+    public void checkAndFetchMissingData(String market) {
+        boolean isKlineUpdated = checkAndFetchMissingKlineData(market);
+        if (isKlineUpdated) {
+            checkAndFetchMissingTickerData(market);
+            checkAndFetchMissingTradeData(market);
+            checkAndFetchMissingFundingData(market);
+            checkAndFetchMissingAggTradeData(market);
+        }
 
     }
 
     /**
      * ✅ 선물 Continuous Kline 데이터 저장
      */
-    public void saveHistoricalKlines(String market, String interval, BigInteger startTime) {
+    private void saveHistoricalKlines(String market, String interval, BigInteger startTime) {
         logger.info("📡 {} 선물 Continuous Kline 데이터 요청 (interval: {}, 시작 시간: {})", market, interval, startTime);
 
-        String pair = market.toUpperCase();  // BTCUSDT → BTC 변환
-        String contractType = "PERPETUAL";  // 무기한 계약 사용
+        String pair = market.toUpperCase();
+        String contractType = "PERPETUAL";
 
-        String url = String.format("%s/continuousKlines?pair=%s&contractType=%s&interval=%s&startTime=%d&limit=1500",
-                binanceApiUrl, pair.toUpperCase(), contractType, interval, startTime);
+        String url = String.format("/fapi/v1/continuousKlines?pair=%s&contractType=%s&interval=%s&startTime=%d&limit=1500",
+                pair, contractType, interval, startTime);
 
-        fetchAndStoreKlineData(url, market);
-    }
-
-    /**
-     * ✅ Kline 데이터를 가져와서 저장하는 헬퍼 메소드
-     */
-    private void fetchAndStoreKlineData(String url, String market) {
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(url);
-
-            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                if (response.getCode() == HttpStatus.SC_OK) {
-                    String json = EntityUtils.toString(response.getEntity());
-                    JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
-
-                    for (int i = 0; i < jsonArray.size(); i++) {
-                        JsonArray klineData = jsonArray.get(i).getAsJsonArray();
-
-                        BinanceKlineDTO klineDTO = new BinanceKlineDTO();
-                        BinanceKlineDTO.KlineData data = new BinanceKlineDTO.KlineData();
-
-                        data.setOpenTime(klineData.get(0).getAsBigInteger());
-                        data.setCloseTime(klineData.get(6).getAsBigInteger());
-                        data.setOpenPrice(klineData.get(1).getAsBigDecimal());
-                        data.setHighPrice(klineData.get(2).getAsBigDecimal());
-                        data.setLowPrice(klineData.get(3).getAsBigDecimal());
-                        data.setClosePrice(klineData.get(4).getAsBigDecimal());
-                        data.setVolume(klineData.get(5).getAsBigDecimal());
-                        data.setTradeCount(klineData.get(8).getAsBigInteger());
-
-                        klineDTO.setSymbol(market.toUpperCase());
-                        klineDTO.setKline(data);
-
-                        klineMapper.insertKline(klineDTO);
-                    }
-                    logger.info("✅ {} Kline 데이터 저장 완료", market);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("❌ {} Kline 데이터 저장 오류", market, e);
-        }
+        fetchAndStoreKlineData(url, market).block(); // 동기 처리
     }
 
     /**
@@ -107,13 +79,14 @@ public class BinanceHistoryService {
     public void saveTicker(String market) {
         logger.info("📡 {} Ticker 데이터 요청 시작", market);
 
-        String url = String.format("%s/ticker/24hr?symbol=%s", binanceApiUrl, market.toUpperCase());
+        String url = String.format("/fapi/v1/ticker/24hr?symbol=%s", market.toUpperCase());
 
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(url);
-            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                if (response.getCode() == HttpStatus.SC_OK) {
-                    String json = EntityUtils.toString(response.getEntity());
+        webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> logger.error("❌ {} Ticker 데이터 요청 실패: {}", market, error.getMessage()))
+                .flatMap(json -> {
                     JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
 
                     BinanceTickerDTO tickerDTO = new BinanceTickerDTO();
@@ -130,13 +103,9 @@ public class BinanceHistoryService {
 
                     tickerMapper.insertTicker(tickerDTO);
                     logger.info("✅ {} Ticker 데이터 저장 완료", market);
-                } else {
-                    logger.warn("⚠️ {} Ticker 데이터 요청 실패 (응답 코드: {})", market, response.getCode());
-                }
-            }
-        } catch (Exception e) {
-            logger.error("❌ {} Ticker 데이터 저장 오류", market, e);
-        }
+                    return Mono.empty();
+                })
+                .block();
     }
 
     /**
@@ -145,14 +114,14 @@ public class BinanceHistoryService {
     public void saveHistoricalTrades(String market, int limit) {
         logger.info("📡 {} Trade 데이터 요청 시작 (limit: {})", market, limit);
 
-        String url = String.format("%s/trades?symbol=%s&limit=%d",
-                binanceApiUrl, market.toUpperCase(), limit);
+        String url = String.format("/fapi/v1/trades?symbol=%s&limit=%d", market.toUpperCase(), limit);
 
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(url);
-            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                if (response.getCode() == HttpStatus.SC_OK) {
-                    String json = EntityUtils.toString(response.getEntity());
+        webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> logger.error("❌ {} Trade 데이터 요청 실패: {}", market, error.getMessage()))
+                .flatMap(json -> {
                     JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
 
                     for (int i = 0; i < jsonArray.size(); i++) {
@@ -169,13 +138,9 @@ public class BinanceHistoryService {
                         tradeMapper.insertTrade(tradeDTO);
                     }
                     logger.info("✅ {} Trade 데이터 저장 완료", market);
-                } else {
-                    logger.warn("⚠️ {} Trade 데이터 요청 실패 (응답 코드: {})", market, response.getCode());
-                }
-            }
-        } catch (Exception e) {
-            logger.error("❌ {} Trade 데이터 저장 오류", market, e);
-        }
+                    return Mono.empty();
+                })
+                .block();
     }
 
     /**
@@ -184,14 +149,14 @@ public class BinanceHistoryService {
     public void saveFundingRates(String market) {
         logger.info("📡 {} Funding Rate 데이터 요청 시작", market);
 
-        String url = String.format("%s/fundingRate?symbol=%s&limit=1000", binanceApiUrl, market.toUpperCase());
+        String url = String.format("/fapi/v1/fundingRate?symbol=%s&limit=1000", market.toUpperCase());
 
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(url);
-
-            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                if (response.getCode() == HttpStatus.SC_OK) {
-                    String json = EntityUtils.toString(response.getEntity());
+        webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> logger.error("❌ {} Funding Rate 데이터 요청 실패: {}", market, error.getMessage()))
+                .flatMap(json -> {
                     JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
 
                     for (int i = 0; i < jsonArray.size(); i++) {
@@ -206,19 +171,50 @@ public class BinanceHistoryService {
                         fundingRateMapper.insertFundingRate(fundingRateDTO);
                     }
                     logger.info("✅ {} Funding Rate 데이터 저장 완료", market);
-                } else {
-                    logger.warn("⚠️ {} Funding Rate 데이터 요청 실패 (응답 코드: {})", market, response.getCode());
-                }
-            }
-        } catch (Exception e) {
-            logger.error("❌ {} Funding Rate 데이터 저장 오류", market, e);
-        }
+                    return Mono.empty();
+                })
+                .block();
+    }
+
+    /**
+     * ✅ Aggregate Trade 데이터 저장 (묶음 거래)
+     */
+    public void saveAggTrades(String market, int limit) {
+        logger.info("📡 {} Aggregate Trade 데이터 요청 시작 (limit: {})", market, limit);
+
+        String url = String.format("/fapi/v1/aggTrades?symbol=%s&limit=%d", market.toUpperCase(), limit);
+
+        webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> logger.error("❌ {} Aggregate Trade 데이터 요청 실패: {}", market, error.getMessage()))
+                .flatMap(json -> {
+                    JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
+
+                    for (int i = 0; i < jsonArray.size(); i++) {
+                        JsonObject jsonObject = jsonArray.get(i).getAsJsonObject();
+
+                        BinanceAggTradeDTO aggTradeDTO = new BinanceAggTradeDTO();
+                        aggTradeDTO.setAggTradeId(jsonObject.get("a").getAsBigInteger());
+                        aggTradeDTO.setSymbol(market.toUpperCase());
+                        aggTradeDTO.setPrice(jsonObject.get("p").getAsBigDecimal());
+                        aggTradeDTO.setQuantity(jsonObject.get("q").getAsBigDecimal());
+                        aggTradeDTO.setTradeTime(jsonObject.get("T").getAsBigInteger());
+                        aggTradeDTO.setBuyerMaker(jsonObject.get("m").getAsBoolean());
+
+                        aggTradeMapper.insertAggTrade(aggTradeDTO);
+                    }
+                    logger.info("✅ {} Aggregate Trade 데이터 저장 완료", market);
+                    return Mono.empty();
+                })
+                .block();
     }
 
     /**
      * ✅ 누락된 펀딩 비율 데이터를 확인하고 가져오는 메소드
      */
-    public void checkAndFetchMissingFundingData(String market) {
+    private void checkAndFetchMissingFundingData(String market) {
         BigInteger now = BigInteger.valueOf(Instant.now().toEpochMilli());
 
         BinanceFundingRateDTO latestFundingRate = fundingRateMapper.getLatestFundingRate(market.toUpperCase());
@@ -233,20 +229,6 @@ public class BinanceHistoryService {
         } else {
             logger.info("✅ {} Funding Rate 데이터 최신 상태 유지 (최근 데이터: {})", market, lastFundingTime);
         }
-    }
-
-    /**
-     * ✅ 기존 checkAndFetchMissingData 메소드에서 Funding Rate 추가
-     */
-    public void checkAndFetchMissingData(String market) {
-        boolean isKlineUpdated = checkAndFetchMissingKlineData(market);
-        if (isKlineUpdated) {
-            checkAndFetchMissingTickerData(market);
-            checkAndFetchMissingTradeData(market);
-            checkAndFetchMissingFundingData(market);
-            checkAndFetchMissingAggTradeData(market);
-        }
-
     }
 
     private boolean checkAndFetchMissingKlineData(String market) {
@@ -296,45 +278,6 @@ public class BinanceHistoryService {
 
 
     /**
-     * ✅ Aggregate Trade 데이터 저장 (묶음 거래)
-     */
-    public void saveAggTrades(String market, int limit) {
-        logger.info("📡 {} Aggregate Trade 데이터 요청 시작 (limit: {})", market, limit);
-
-        String url = String.format("%s/aggTrades?symbol=%s&limit=%d",
-                binanceApiUrl, market.toUpperCase(), limit);
-
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(url);
-            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
-                if (response.getCode() == HttpStatus.SC_OK) {
-                    String json = EntityUtils.toString(response.getEntity());
-                    JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
-
-                    for (int i = 0; i < jsonArray.size(); i++) {
-                        JsonObject jsonObject = jsonArray.get(i).getAsJsonObject();
-
-                        BinanceAggTradeDTO aggTradeDTO = new BinanceAggTradeDTO();
-                        aggTradeDTO.setAggTradeId(jsonObject.get("a").getAsBigInteger());
-                        aggTradeDTO.setSymbol(market.toUpperCase());
-                        aggTradeDTO.setPrice(jsonObject.get("p").getAsBigDecimal());
-                        aggTradeDTO.setQuantity(jsonObject.get("q").getAsBigDecimal());
-                        aggTradeDTO.setTradeTime(jsonObject.get("T").getAsBigInteger());
-                        aggTradeDTO.setBuyerMaker(jsonObject.get("m").getAsBoolean());
-
-                        aggTradeMapper.insertAggTrade(aggTradeDTO);
-                    }
-                    logger.info("✅ {} Aggregate Trade 데이터 저장 완료", market);
-                } else {
-                    logger.warn("⚠️ {} Aggregate Trade 데이터 요청 실패 (응답 코드: {})", market, response.getCode());
-                }
-            }
-        } catch (Exception e) {
-            logger.error("❌ {} Aggregate Trade 데이터 저장 오류", market, e);
-        }
-    }
-
-    /**
      * ✅ 누락된 Aggregate Trade 데이터 체크 후 자동 업데이트
      */
     public void checkAndFetchMissingAggTradeData(String market) {
@@ -352,5 +295,40 @@ public class BinanceHistoryService {
         } else {
             logger.info("✅ {} Aggregate Trade 데이터 최신 상태 유지 (최근 데이터: {})", market, lastAggTradeTime);
         }
+    }
+
+    /**
+     * ✅ Kline 데이터를 가져와서 저장하는 메서드
+     */
+    private Mono<Void> fetchAndStoreKlineData(String url, String market) {
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(String.class)
+                .doOnError(error -> logger.error("❌ {} Kline 데이터 요청 실패: {}", market, error.getMessage()))
+                .flatMap(json -> {
+                    JsonArray jsonArray = JsonParser.parseString(json).getAsJsonArray();
+                    for (int i = 0; i < jsonArray.size(); i++) {
+                        JsonArray klineData = jsonArray.get(i).getAsJsonArray();
+                        BinanceKlineDTO klineDTO = new BinanceKlineDTO();
+                        BinanceKlineDTO.KlineData data = new BinanceKlineDTO.KlineData();
+
+                        data.setOpenTime(klineData.get(0).getAsBigInteger());
+                        data.setCloseTime(klineData.get(6).getAsBigInteger());
+                        data.setOpenPrice(klineData.get(1).getAsBigDecimal());
+                        data.setHighPrice(klineData.get(2).getAsBigDecimal());
+                        data.setLowPrice(klineData.get(3).getAsBigDecimal());
+                        data.setClosePrice(klineData.get(4).getAsBigDecimal());
+                        data.setVolume(klineData.get(5).getAsBigDecimal());
+                        data.setTradeCount(klineData.get(8).getAsBigInteger());
+
+                        klineDTO.setSymbol(market.toUpperCase());
+                        klineDTO.setKline(data);
+
+                        klineMapper.insertKline(klineDTO);
+                    }
+                    logger.info("✅ {} Kline 데이터 저장 완료", market);
+                    return Mono.empty();
+                });
     }
 }

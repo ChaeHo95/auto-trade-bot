@@ -23,7 +23,7 @@ class GeminiServiceTest {
 
     @Test
     void requestGemini() {
-        String result = geminiService.requestGemini(SYMBOL);
-        logger.info(result);
+        String result = geminiService.requestGemini(SYMBOL).block(); // ✅ Mono<String> → String 변환
+        logger.info("✅ Gemini 응답: {}", result);
     }
 }
