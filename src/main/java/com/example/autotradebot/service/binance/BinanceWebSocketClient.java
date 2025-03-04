@@ -177,6 +177,8 @@ public class BinanceWebSocketClient extends WebSocketClient {
     @Override
     public void onError(Exception ex) {
         logger.error("❌ Binance WebSocket 오류 발생: ", ex);
+        // Ping 전송 오류가 발생하면 바로 재연결 시도하도록 추가
+        reconnectWithDelay();
     }
 
 
@@ -184,6 +186,12 @@ public class BinanceWebSocketClient extends WebSocketClient {
      * ✅ WebSocket Ping-Pong 유지 (3분마다 Ping 전송)
      */
     private void startPing() {
+        // 기존 타이머 취소
+        if (pingTimer != null) {
+            pingTimer.cancel();
+        }
+
+        // 새로운 타이머 시작
         pingTimer = new Timer(true);
         pingTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -199,8 +207,12 @@ public class BinanceWebSocketClient extends WebSocketClient {
     @Override
     public void sendPing() {
         try {
-            this.getConnection().sendPing();
-            logger.info("📡 Ping 프레임 전송");
+            if (this.getConnection() != null && this.getConnection().isOpen()) {
+                this.getConnection().sendPing();
+                logger.info("📡 Ping 프레임 전송");
+            } else {
+                logger.error("❌ WebSocket 연결이 열려 있지 않습니다. Ping 전송 실패");
+            }
         } catch (Exception e) {
             logger.error("❌ Ping 전송 실패: ", e);
         }
@@ -234,7 +246,8 @@ public class BinanceWebSocketClient extends WebSocketClient {
 
             try {
                 Thread.sleep(delay);
-                reconnect(); // ✅ WebSocket 재연결
+                reconnect(); // WebSocket 재연결
+                startPing(); // 재연결 후 Ping 전송 시작
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 logger.error("❌ 재연결 중단됨: ", e);
