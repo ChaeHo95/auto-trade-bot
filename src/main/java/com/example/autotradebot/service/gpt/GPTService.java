@@ -1,20 +1,18 @@
 package com.example.autotradebot.service.gpt;
 
 import com.example.autotradebot.dto.analysis.*;
+import com.example.autotradebot.dto.bot.OpenAiResponseDTO;
 import com.example.autotradebot.state.ChartAnalysisCacheManager;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.model.Generation;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.StringReader;
 import java.math.BigDecimal;
@@ -26,14 +24,13 @@ import java.util.stream.Collectors;
 public class GPTService {
 
     private Logger logger = LoggerFactory.getLogger(GPTService.class);
+    private final WebClient webClient;
 
-
-    private final OpenAiChatModel openAiChatModel;
     private final ChartAnalysisCacheManager chartAnalysisCacheManager;
 
     @Autowired
-    public GPTService(OpenAiChatModel openAiChatModel, ChartAnalysisCacheManager chartAnalysisCacheManager) {
-        this.openAiChatModel = openAiChatModel;
+    public GPTService(ChartAnalysisCacheManager chartAnalysisCacheManager, @Qualifier("openAiApiClient") WebClient openAiApiClient) {
+        this.webClient = openAiApiClient;
         this.chartAnalysisCacheManager = chartAnalysisCacheManager;
     }
 
@@ -53,7 +50,7 @@ public class GPTService {
                 marketAnalysisDTO.getMacdValue()
         );
 
-        SystemMessage systemMessage = new SystemMessage(
+        String systemMessage =
                 "You are a highly advanced crypto trading assistant specializing in analyzing market trends and price movements. "
                         + "Your task is to evaluate the provided market data and generate a recommendation for the best trading position. "
                         + "Please ensure to consider all the following factors when making your analysis:\n\n"
@@ -70,61 +67,113 @@ public class GPTService {
                         + "- **Stop-Loss Price:** Suggest an appropriate stop-loss price to minimize potential losses.\n"
                         + "- **Take-Profit Price:** Suggest a take-profit price based on the current market analysis.\n"
                         + "- **Leverage Level:** Recommend a suitable leverage level based on the overall market conditions.\n\n"
-                        + "Please ensure that your recommendation is well-supported by the available data to make the most informed and accurate decision possible."
-        );
+                        + "Please ensure that your recommendation is well-supported by the available data to make the most informed and accurate decision possible.";
+
 
         // 3️⃣ 사용자 데이터 입력 (전체 데이터 JSON 포함)
-        UserMessage userMessage = new UserMessage(
-                String.format(
-                        "Analyze the following market data and predict the best trading position:\n\n"
-                                + "### Trading Symbol: %s\n\n"
-                                + "### Market Data (JSON Format):\n%s\n\n"
-                                + "### AI Previous Analysis (from last prediction):\n%s\n\n"
-                                + "### Technical Indicators:\n%s\n\n"
-                                + "### Your Response Format (JSON):\n"
-                                + "{\n"
-                                + "  \"symbol\": \"%s\",\n"
-                                + "  \"position\": \"LONG | SHORT | EXIT | WAIT\",\n"
-                                + "  \"confidence\": percentage (0-100),\n"
-                                + "  \"reason\": \"Explain why this position is recommended\",\n"
-                                + "  \"stopLoss\": \"Recommended stop-loss price\",\n"
-                                + "  \"takeProfit\": \"Recommended take-profit price\",\n"
-                                + "  \"leverage\": \"Suggested leverage level (if applicable)\"\n"
-                                + "}\n",
-                        marketAnalysisDTO.getSymbol(), klineSummary, tradeSummary, fundingSummary, aiAnalysis,
-                        technicalIndicators, marketAnalysisDTO.getSymbol()
-                )
+        String userMessage = String.format(
+                "Analyze the following market data and predict the best trading position:\n\n"
+                        + "### Trading Symbol: %s\n\n"
+                        + "### Market Data (JSON Format):\n%s\n\n"
+                        + "### AI Previous Analysis (from last prediction):\n%s\n\n"
+                        + "### Technical Indicators:\n%s\n\n"
+                        + "### Your Response Format (JSON):\n"
+                        + "{\n"
+                        + "  \"symbol\": \"%s\",\n"
+                        + "  \"position\": \"LONG | SHORT | EXIT | WAIT\",\n"
+                        + "  \"confidence\": percentage (0-100),\n"
+                        + "  \"reason\": \"Explain why this position is recommended\",\n"
+                        + "  \"stopLoss\": \"Recommended stop-loss price\",\n"
+                        + "  \"takeProfit\": \"Recommended take-profit price\",\n"
+                        + "  \"leverage\": \"Suggested leverage level (if applicable)\"\n"
+                        + "}\n",
+                marketAnalysisDTO.getSymbol(), klineSummary, tradeSummary, fundingSummary, aiAnalysis,
+                technicalIndicators, marketAnalysisDTO.getSymbol()
         );
 
-        // 4️⃣ 프롬프트 생성
-        Prompt prompt = new Prompt(List.of(systemMessage, userMessage));
 
-        // 5️⃣ OpenAI 모델 호출
-        ChatResponse response = openAiChatModel.call(prompt);
+        // 3️⃣ OpenAI API 호출
+        ChartAnalysisPredictionDTO responseDto = callOpenAiApi(systemMessage, userMessage, marketAnalysisDTO);
 
-        // 6️⃣ 응답이 존재하면 첫 번째 결과 가져오기
-        if (response != null && response.getResults() != null && !response.getResults().isEmpty()) {
-            Generation generation = response.getResult();
-
-            // ✅ GPT 응답을 JSON으로 파싱
-            String responseText = generation.getOutput().getText();
-
-            String cleanedResponseText = responseText.replace("```json", "").replace("```", "").trim();
-            // JsonObject로 응답을 파싱
-            JsonReader reader = new JsonReader(new StringReader(cleanedResponseText));
-
-            reader.setLenient(true);  // lenient 파싱 허용
-            JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
-
-            // ✅ GPT 응답을 DTO로 변환
-            ChartAnalysisPredictionDTO chartAnalysisPredictionDTO = mapToChartAnalysisPredictionDTO(jsonObject, marketAnalysisDTO);
-            // 응답 반환
-            return chartAnalysisPredictionDTO;
+        // 4️⃣ 응답이 존재하면 첫 번째 결과 가져오기
+        if (responseDto != null) {
+            return responseDto;
         }
-
 
         return null;
     }
+
+
+    /**
+     * WebClient를 이용하여 OpenAI API 호출
+     */
+    private ChartAnalysisPredictionDTO callOpenAiApi(String systemMessage, String userMessage, MarketAnalysisDTO marketAnalysisDTO) {
+        try {
+            // Create request body
+            JsonObject requestBodyJson = new JsonObject();
+            requestBodyJson.addProperty("model", "gpt-4o-mini");
+
+            JsonArray messages = new JsonArray();
+            JsonObject systemMessageJson = new JsonObject();
+            systemMessageJson.addProperty("role", "system");
+            systemMessageJson.addProperty("content", systemMessage);
+            messages.add(systemMessageJson);
+
+            JsonObject userMessageJson = new JsonObject();
+            userMessageJson.addProperty("role", "user");
+            userMessageJson.addProperty("content", userMessage);
+            messages.add(userMessageJson);
+
+            requestBodyJson.add("messages", messages);
+            requestBodyJson.addProperty("temperature", 0.7);
+
+            String requestBody = requestBodyJson.toString();
+
+            // Make API call to OpenAI
+            OpenAiResponseDTO response = webClient.post()
+                    .uri("/chat/completions")
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(OpenAiResponseDTO.class)
+                    .block();
+
+            if (response != null) {
+                logger.info("OpenAI response: {}", response);
+
+                // Parse the message content from the response
+                String content = null;
+                if (response.getChoices() != null && !response.getChoices().isEmpty()) {
+                    // Assuming we want the content of the first choice
+                    content = response.getChoices().get(0).getMessage().getContent();
+                }
+
+                if (content != null) {
+                    logger.info("Received content: {}", content);
+
+                    String cleanedResponseText = content.replace("```json", "").replace("```", "").trim();
+                    // JsonObject로 응답을 파싱
+                    JsonReader reader = new JsonReader(new StringReader(cleanedResponseText));
+
+                    reader.setLenient(true);  // lenient 파싱 허용
+                    JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
+
+                    return mapToChartAnalysisPredictionDTO(jsonObject, marketAnalysisDTO);
+                } else {
+                    logger.error("No valid content found in the OpenAI response.");
+                }
+            } else {
+                logger.error("No response from OpenAI API.");
+                return null;
+            }
+
+            return null;
+        } catch (Exception e) {
+            logger.error("Error calling OpenAI API", e);
+            return null;
+        }
+    }
+
 
     // ✅ 최근 200개 캔들 데이터 JSON 변환
     private String convertKlineToJson(List<MarketAnalysisKlineDTO> marketAnalysisKlineDTOS) {
@@ -188,10 +237,10 @@ public class GPTService {
     private ChartAnalysisPredictionDTO mapToChartAnalysisPredictionDTO(JsonObject jsonResponse, MarketAnalysisDTO marketAnalysisDTO) {
 
         // 각 필드에 대해 null 체크 및 "N/A" 값 처리
-        BigDecimal movingAverage = marketAnalysisDTO.getMovingAverage();
-        BigDecimal rsiValue = marketAnalysisDTO.getRsiValue();
-        BigDecimal macdValue = marketAnalysisDTO.getMacdValue();
-        BigDecimal volatility = marketAnalysisDTO.getMacdValue();
+        BigDecimal movingAverage = (marketAnalysisDTO.getMovingAverage() != null) ? marketAnalysisDTO.getMovingAverage() : BigDecimal.ZERO;
+        BigDecimal rsiValue = (marketAnalysisDTO.getRsiValue() != null) ? marketAnalysisDTO.getRsiValue() : BigDecimal.ZERO;
+        BigDecimal macdValue = (marketAnalysisDTO.getMacdValue() != null) ? marketAnalysisDTO.getMacdValue() : BigDecimal.ZERO;
+        BigDecimal volatility = (marketAnalysisDTO.getMacdValue() != null) ? marketAnalysisDTO.getMacdValue() : BigDecimal.ZERO;
         BigDecimal fundingRate = marketAnalysisDTO.getFundingRates().stream()
                 .map(MarketAnalysisFundingRateDTO::getFundingRate) // 각 펀딩 비율을 가져옵니다.
                 .reduce(BigDecimal.ZERO, BigDecimal::add); // 모든 펀딩 비율을 더합니다. 초기값은 0

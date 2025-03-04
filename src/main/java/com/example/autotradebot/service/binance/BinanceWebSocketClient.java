@@ -224,14 +224,14 @@ public class BinanceWebSocketClient extends WebSocketClient {
      */
     @Override
     public void onClose(int code, String reason, boolean remote) {
-        logger.warn("❌ Binance WebSocket 연결 종료: {} {}", code, reason);
+        logger.warn("❌ Binance WebSocket 연결 종료: {} {} {} ", code, reason, remote);
         if (pingTimer != null) {
             pingTimer.cancel();
         }
 
-        // ✅ WebSocket 재연결을 별도 스레드에서 실행
+        // ✅ 재연결 로직을 동기적으로 실행
         if (remote) {
-            new Thread(this::reconnectWithDelay).start();
+            reconnectWithDelay(); // 별도의 쓰레드 없이 재연결 시도
         }
     }
 

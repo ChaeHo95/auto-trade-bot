@@ -3,17 +3,15 @@ package com.example.autotradebot.config.gpt;
 import com.example.autotradebot.config.EnvConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
 public class OpenAiConfig {
 
     private Logger logger = LoggerFactory.getLogger(OpenAiConfig.class);
-
     private EnvConfig envConfig;
 
     @Autowired
@@ -47,22 +45,23 @@ public class OpenAiConfig {
     }
 
     /**
-     * ✅ OpenAI API 클라이언트 Bean 등록
+     * ✅ 환경 변수에서 Gemini API 엔드포인트 가져오기
      */
-    @Bean
-    public OpenAiApi openAiApi() {
-        String apiKey = getOpenAiApiKey();
+    @Bean(name = "openAiApiClient")
+    public WebClient openAiApiClient() {
         String endpoint = getOpenAiApiEndpoint();
 
-        // Use the constructor that uses API Key and Endpoint
-        return new OpenAiApi(endpoint, apiKey);
-    }
+        if (endpoint == null || endpoint.isEmpty()) {
+            logger.error("❌ OPENAI_API_ENDPOINT가 설정되지 않았습니다!");
+            throw new RuntimeException("OPENAI_API_ENDPOINT를 환경 변수 또는 .env 파일에 설정해주세요.");
+        }
 
-    /**
-     * ✅ OpenAI Chat Model Bean 등록
-     */
-    @Bean
-    public OpenAiChatModel openAiChatModel(OpenAiApi openAiApi) {
-        return new OpenAiChatModel(openAiApi);
+
+        logger.info("✅ OpenAi API Endpoint 로드 성공: {}", endpoint);
+
+        return WebClient.builder()
+                .baseUrl(endpoint)
+                .defaultHeader("Authorization", "Bearer " + getOpenAiApiKey())
+                .build();
     }
 }

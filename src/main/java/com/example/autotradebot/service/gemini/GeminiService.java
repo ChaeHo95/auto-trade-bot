@@ -12,7 +12,7 @@ import reactor.core.publisher.Mono;
 
 @Service
 public class GeminiService {
-    private static final Logger logger = LoggerFactory.getLogger(GeminiService.class);
+    private final Logger logger = LoggerFactory.getLogger(GeminiService.class);
     private final WebClient webClient;
 
     // 요청 설정값을 필드 변수로 선언

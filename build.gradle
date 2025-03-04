@@ -60,9 +60,6 @@ dependencies {
     testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4") // MyBatis 테스트 지원
     testImplementation("org.springframework.security:spring-security-test") // Security 관련 테스트 지원
 
-    // ✅ChatGpt 의존성
-    implementation("org.springframework.ai:spring-ai-openai-spring-boot-starter:1.0.0-M6")
-
     // ✅ Binance WebSocket을 위한 추가 의존성
     implementation("org.springframework.boot:spring-boot-starter-websocket") // Spring Boot WebSocket 지원
     implementation("com.fasterxml.jackson.core:jackson-databind") // JSON 파싱
@@ -70,6 +67,8 @@ dependencies {
 
     // ✅ Protocol Buffer (protobuf-java) 의존성 추가 (Spring AI Gemini 사용에 필요)
     implementation("com.google.protobuf:protobuf-java:4.29.3")
+
+    implementation("org.springframework.boot:spring-boot-starter-webflux:3.4.3")
 
 }
 

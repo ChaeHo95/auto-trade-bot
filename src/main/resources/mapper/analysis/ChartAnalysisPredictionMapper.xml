@@ -29,7 +29,7 @@
         (symbol, analysis_time, recommended_position, confidence_score, moving_average, rsi_value,
          macd_value, volatility, funding_rate, trade_volume, reason, created_at)
         VALUES (#{symbol}, #{analysisTime}, #{recommendedPosition}, #{confidenceScore}, #{movingAverage},
-                #{rsiValue}, #{macdValue}, #{volatility}, #{fundingRate}, #{reason}, #{tradeVolume}, NOW());
+                #{rsiValue}, #{macdValue}, #{volatility}, #{fundingRate}, #{tradeVolume}, #{reason}, NOW());
     </insert>
 
 </mapper>
