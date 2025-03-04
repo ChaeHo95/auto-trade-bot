@@ -35,6 +35,7 @@ public class ChartAnalysisScheduler {
             // 1️⃣ 최근 차트 데이터 가져오기
             // 2️⃣ GPT 차트 분석 서비스 호출
             chartAnalysisService.scheduledChartAnalysis("GEMINI", market.toUpperCase());
+            chartAnalysisService.scheduledChartAnalysis("CHATGPT", market.toUpperCase());
         }
     }
 }

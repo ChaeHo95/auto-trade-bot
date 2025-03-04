@@ -7,6 +7,8 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -28,6 +30,10 @@ public class BinanceWebSocketClient extends WebSocketClient {
     private static final long RECONNECT_DELAY = TimeUnit.SECONDS.toMillis(5);
     private int reconnectAttempts = 0;
 
+
+    @Value("${enable.binance.websocket:false}") // 기본값 false
+    private boolean enableWebSocket;
+
     /**
      * ✅ Binance WebSocketClient 생성자
      */
@@ -45,6 +51,25 @@ public class BinanceWebSocketClient extends WebSocketClient {
         this.fundingRateService = fundingRateService;
         this.aggTradeService = aggTradeService;
         this.objectMapper = objectMapper;
+    }
+
+    /**
+     * ✅ WebSocket 상태 체크 및 자동 재연결 (5분마다 실행)
+     */
+    @Scheduled(fixedDelay = 1 * 60 * 1000)
+    public void checkAndReconnect() {
+        if (!enableWebSocket) {
+            logger.info("⚠ WebSocket 실행이 비활성화됨.");
+            return; // 실행하지 않음
+        }
+
+
+        if (!isWebSocketOpen()) {
+            logger.warn("⚠️ WebSocket이 닫혀 있음. 재연결 시도...");
+            reconnectWithDelay();
+        } else {
+            logger.info("✅ WebSocket 정상 작동 중.");
+        }
     }
 
     /**
@@ -205,4 +230,16 @@ public class BinanceWebSocketClient extends WebSocketClient {
             logger.error("❌ 최대 재연결 시도 횟수 초과. WebSocket 연결 종료.");
         }
     }
+
+    /**
+     * ✅ WebSocket 현재 상태 확인
+     */
+    public boolean isWebSocketOpen() {
+        return this.isOpen();
+    }
+
+    public boolean isWebSocketClosed() {
+        return this.isClosed();
+    }
+
 }

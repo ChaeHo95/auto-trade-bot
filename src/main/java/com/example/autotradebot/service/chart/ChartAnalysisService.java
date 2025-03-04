@@ -4,8 +4,10 @@ import com.example.autotradebot.dto.analysis.*;
 import com.example.autotradebot.service.analysis.MarketAnalysisService;
 import com.example.autotradebot.service.gemini.GeminiService;
 import com.example.autotradebot.service.gpt.GptService;
-import com.example.autotradebot.state.ChartAnalysisCacheManager;
-import com.example.autotradebot.state.PredictionCacheManager;
+import com.example.autotradebot.state.ChatGptChartAnalysisCacheManager;
+import com.example.autotradebot.state.ChatGptPredictionCacheManager;
+import com.example.autotradebot.state.GeminiChartAnalysisCacheManager;
+import com.example.autotradebot.state.GeminiPredictionCacheManager;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
@@ -25,19 +27,28 @@ public class ChartAnalysisService {
 
     private Logger logger = LoggerFactory.getLogger(ChartAnalysisService.class);
 
-    private final ChartAnalysisCacheManager chartAnalysisCacheManager;
+    private final GeminiChartAnalysisCacheManager geminiChartAnalysisCacheManager;
+    private final ChatGptChartAnalysisCacheManager chatGptChartAnalysisCacheManager;
     private final GeminiService geminiService;
     private final GptService gptService;
     private final MarketAnalysisService marketAnalysisService;
-    private final PredictionCacheManager predictionCacheManager;
+    private final ChatGptPredictionCacheManager chatGptPredictionCacheManager;
+    private final GeminiPredictionCacheManager geminiPredictionCacheManager;
     private final PredictionService predictionService;
 
     @Autowired
-    public ChartAnalysisService(ChartAnalysisCacheManager chartAnalysisCacheManager, GeminiService geminiService, MarketAnalysisService marketAnalysisService, PredictionService predictionService, PredictionCacheManager predictionCacheManager, GptService gptService) {
+    public ChartAnalysisService(GeminiChartAnalysisCacheManager geminiChartAnalysisCacheManager,
+                                ChatGptChartAnalysisCacheManager chatGptChartAnalysisCacheManager,
+                                ChatGptPredictionCacheManager chatGptPredictionCacheManager,
+                                GeminiPredictionCacheManager geminiPredictionCacheManager,
+                                GeminiService geminiService, MarketAnalysisService marketAnalysisService,
+                                PredictionService predictionService, GptService gptService) {
+        this.geminiChartAnalysisCacheManager = geminiChartAnalysisCacheManager;
+        this.chatGptChartAnalysisCacheManager = chatGptChartAnalysisCacheManager;
+        this.geminiPredictionCacheManager = geminiPredictionCacheManager;
+        this.chatGptPredictionCacheManager = chatGptPredictionCacheManager;
         this.geminiService = geminiService;
-        this.chartAnalysisCacheManager = chartAnalysisCacheManager;
         this.marketAnalysisService = marketAnalysisService;
-        this.predictionCacheManager = predictionCacheManager;
         this.predictionService = predictionService;
         this.gptService = gptService;
     }
@@ -55,11 +66,24 @@ public class ChartAnalysisService {
         MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol, bot);
 
         // 2️⃣ 심볼별로 캐시된 분석 결과 가져오기
-        PredictionDTO cachedPrediction = predictionCacheManager.getPrediction(bot, symbol);
+        PredictionDTO cachedPrediction = null;
+
+        if (bot.equals("GEMINI")) {
+            cachedPrediction = geminiPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+        }
+        if (bot.equals("CHATGPT")) {
+            cachedPrediction = chatGptPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+        }
 
         if (isVolatilityHigh(marketData, bot, symbol)) {
             // 변동성이 높거나, 캐시와 현재 데이터의 변동률 차이가 크므로 즉시 GPT 호출
-            logger.info("변동성이 높거나, 캐시된 데이터와 변동률 차이가 커서 즉시 GPT 호출");
+
+            if (bot.equals("GEMINI")) {
+                logger.info("변동률 차이가 커서 즉시 GEMINI 호출");
+            }
+            if (bot.equals("CHATGPT")) {
+                logger.info("변동률 차이가 커서 즉시 GPT 호출");
+            }
             analyzeChart(symbol, marketData, bot);
             return; // 호출 후 바로 종료
         }
@@ -67,10 +91,21 @@ public class ChartAnalysisService {
         // 3️⃣ 캐시된 데이터가 없거나 15분 이상 지난 경우 호출
         if (cachedPrediction == null || isDataExpired(cachedPrediction, bot)) {
             // 5️⃣ 변동성이 낮으면 15분 후에 다시 호출하도록 예약
-            logger.info("변동성이 낮아 15분 후에 호출 예약");
+            if (bot.equals("GEMINI")) {
+                logger.info("변동성이 낮아 5분 후에 호출 예약");
+            }
+            if (bot.equals("CHATGPT")) {
+                logger.info("변동성이 낮아 30분 후에 호출 예약");
+            }
             analyzeChart(symbol, marketData, bot);
         } else {
-            logger.info("캐시된 데이터가 존재하고 15분 이내이므로 GPT 호출 생략");
+            if (bot.equals("GEMINI")) {
+                logger.info("캐시된 데이터가 존재하고 5분 전 이므로 GEMINI 호출 생략");
+            }
+            if (bot.equals("CHATGPT")) {
+                logger.info("캐시된 데이터가 존재하고 30분 전 이므로 CHATGPT 호출 생략");
+            }
+
         }
     }
 
@@ -175,8 +210,14 @@ public class ChartAnalysisService {
                 .leverage(leverage)
                 .build();
 
-        // 캐시 저장
-        chartAnalysisCacheManager.putChartAnalysis(marketAnalysisDTO.getSymbol(), chartAnalysisDTO);
+
+        if (bot.equals("GEMINI")) {
+            geminiChartAnalysisCacheManager.putChartAnalysis(marketAnalysisDTO.getSymbol(), chartAnalysisDTO);
+        }
+        if (bot.equals("CHATGPT")) {
+            chatGptChartAnalysisCacheManager.putChartAnalysis(marketAnalysisDTO.getSymbol(), chartAnalysisDTO);
+        }
+
 
         return PredictionDTO.builder()
                 .botType(bot)
@@ -212,8 +253,13 @@ public class ChartAnalysisService {
      */
     private boolean isVolatilityHigh(MarketAnalysisDTO marketData, String bot, String symbol) {
         // 1️⃣ 캐시된 예측 결과 가져오기
-        PredictionDTO cachedPrediction = predictionCacheManager.getPrediction(bot, symbol);
-
+        PredictionDTO cachedPrediction = null;
+        if (bot.equals("GEMINI")) {
+            cachedPrediction = geminiPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+        }
+        if (bot.equals("CHATGPT")) {
+            cachedPrediction = chatGptPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+        }
         // 캐시된 데이터가 없거나 변동성을 계산할 수 없으면 false로 처리
         if (cachedPrediction == null) {
             logger.info("캐시된 데이터가 없어서 변동성 체크를 할 수 없습니다.");
@@ -240,8 +286,14 @@ public class ChartAnalysisService {
 
         PredictionDTO predictionDTO = chartAnalysis(marketData, bot);
 
+        if (bot.equals("GEMINI")) {
+            geminiPredictionCacheManager.putPrediction(symbol, predictionDTO); // 캐시 저장
+        }
+        if (bot.equals("CHATGPT")) {
+            chatGptPredictionCacheManager.putPrediction(symbol, predictionDTO); // 캐시 저장
+        }
         // 7️⃣ 분석 결과 캐시에 저장
-        predictionCacheManager.putPrediction(bot, symbol, predictionDTO); // 캐시 저장
+
 
         // 8️⃣ DB에도 결과 저장
         predictionService.savePrediction(predictionDTO); // DB 저장
