@@ -1,91 +1,76 @@
 package com.example.autotradebot.util;
 
-import okhttp3.*;
+import com.google.gson.Gson;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Component
 public class MexcHttpUtil {
-    private static final OkHttpClient client = new OkHttpClient.Builder()
-            .protocols(java.util.Collections.singletonList(Protocol.HTTP_1_1)) // 📌 HTTP/1.1 강제 사용
-            .connectTimeout(30, TimeUnit.SECONDS) // 📌 연결 타임아웃 설정
-            .readTimeout(30, TimeUnit.SECONDS) // 📌 응답 대기 시간 설정
-            .writeTimeout(30, TimeUnit.SECONDS) // 📌 요청 타임아웃 설정
-            .retryOnConnectionFailure(true) // 📌 연결 실패 시 재시도
-            .build();
+    private static final Gson gson = new Gson();
+    private final WebClient webClient;
 
-    // 📌 서명(Signature) 포함한 GET 요청
-    public String sendSignedGetRequest(String url, Map<String, String> params, String apiKey, String secretKey) throws IOException {
-        long timestamp = System.currentTimeMillis();
-        params.put("timestamp", String.valueOf(timestamp));
+    public MexcHttpUtil(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
 
-        StringBuilder queryString = new StringBuilder();
-        for (Map.Entry<String, String> param : params.entrySet()) {
-            queryString.append(param.getKey()).append("=").append(param.getValue()).append("&");
-        }
-        queryString.setLength(queryString.length() - 1); // 마지막 `&` 제거
-
-        // 📌 서명 생성
-        String signature;
+    /**
+     * 📌 서명(Signature) 포함한 GET 요청 (비동기)
+     */
+    public Mono<String> sendSignedGetRequest(String url, Map<String, String> params, String apiKey, String secretKey) {
         try {
-            signature = MexcSignatureUtil.generateSignature(queryString.toString(), secretKey);
+            long timestamp = System.currentTimeMillis();
+            params.put("timestamp", String.valueOf(timestamp));
+
+            // ✅ 서명 생성
+            String signature = MexcSignatureUtil.generateSignature(params, secretKey);
+            params.put("signature", signature);
+
+            return webClient.get()
+                    .uri(uriBuilder -> {
+                        uriBuilder.path(url);
+                        params.forEach(uriBuilder::queryParam);
+                        return uriBuilder.build();
+                    })
+                    .header("X-MEXC-APIKEY", apiKey)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .doOnError(error -> System.err.println("❌ GET 요청 실패: " + error.getMessage())); // 오류 처리 추가
         } catch (Exception e) {
-            throw new IOException("Signature creation failed", e);
-        }
-
-        HttpUrl signedUrl = HttpUrl.parse(url).newBuilder()
-                .addQueryParameter("timestamp", String.valueOf(timestamp))
-                .addQueryParameter("signature", signature)
-                .build();
-
-        Request request = new Request.Builder()
-                .url(signedUrl)
-                .addHeader("X-MEXC-APIKEY", apiKey)
-                .get()
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + response + ": " + response.body().string());
-            }
-            return response.body().string();
+            return Mono.error(new RuntimeException("❌ 서명 생성 실패: " + e.getMessage(), e));
         }
     }
 
-    // 📌 서명(Signature) 포함한 POST 요청
-    public String sendSignedPostRequest(String url, String jsonBody, String apiKey, String secretKey) throws IOException {
-        long timestamp = System.currentTimeMillis();
-        String payload = "timestamp=" + timestamp;
-
-        // 📌 서명 생성
-        String signature;
+    /**
+     * 📌 서명(Signature) 포함한 POST 요청 (비동기)
+     */
+    public Mono<String> sendSignedPostRequest(String url, Map<String, Object> payload, String apiKey, String secretKey) {
         try {
-            signature = MexcSignatureUtil.generateSignature(payload, secretKey);
+            long timestamp = System.currentTimeMillis();
+            payload.put("timestamp", timestamp);
+
+            // ✅ 서명 생성
+            String signature = MexcSignatureUtil.generateSignature(payload, secretKey);
+            payload.put("signature", signature);
+
+            String jsonBody = gson.toJson(payload); // JSON 변환
+
+            return webClient.post()
+                    .uri(url)
+                    .header("X-MEXC-APIKEY", apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(jsonBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .doOnError(error -> System.err.println("❌ POST 요청 실패: " + error.getMessage())); // 오류 처리 추가
         } catch (Exception e) {
-            throw new IOException("Signature creation failed", e);
-        }
-
-        HttpUrl signedUrl = HttpUrl.parse(url).newBuilder()
-                .addQueryParameter("timestamp", String.valueOf(timestamp))
-                .addQueryParameter("signature", signature)
-                .build();
-
-        RequestBody body = RequestBody.create(jsonBody, MediaType.get("application/json; charset=utf-8"));
-
-        Request request = new Request.Builder()
-                .url(signedUrl)
-                .addHeader("X-MEXC-APIKEY", apiKey)
-                .post(body)
-                .build();
-
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Unexpected code " + response + ": " + response.body().string());
-            }
-            return response.body().string();
+            return Mono.error(new RuntimeException("❌ 서명 생성 실패: " + e.getMessage(), e));
         }
     }
 }

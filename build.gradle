@@ -41,9 +41,6 @@ dependencies {
     // ✅ Swagger (SpringDoc OpenAPI) - API 문서 자동 생성
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
-    // ✅ HttpClient 5 (REST API 호출)
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.4.2")
-
     // ✅ Gson (JSON 직렬화/역직렬화)
     implementation("com.google.code.gson:gson:2.10.1")
 
@@ -73,10 +70,6 @@ dependencies {
 
     // ✅ Protocol Buffer (protobuf-java) 의존성 추가 (Spring AI Gemini 사용에 필요)
     implementation("com.google.protobuf:protobuf-java:4.29.3")
-
-    // 📌 OkHttp (API 호출)
-    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
-
 
 }
 
