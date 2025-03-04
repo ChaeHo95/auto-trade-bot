@@ -37,18 +37,10 @@
 
     <!-- ✅ AI 분석 예측 정보 -->
     <select id="getChartAnalysis" resultType="com.example.autotradebot.dto.analysis.PredictionDTO">
-        SELECT symbol,
-               IFNULL(recommended_position, 'WAIT') AS recommended_position,
-               IFNULL(confidence_score, 0.00)       AS confidence_score,
-               IFNULL(moving_average, 0.0000000000) AS moving_average,
-               IFNULL(rsi_value, 50.00)             AS rsi_value,
-               IFNULL(macd_value, 0.0000000000)     AS macd_value,
-               IFNULL(volatility, 0.0000000000)     AS volatility,
-               IFNULL(funding_rate, 0.0000000000)   AS funding_rate,
-               IFNULL(trade_volume, 0.0000000000)   AS trade_volume,
-               IFNULL(analysis_time, NOW())         AS analysis_time
+        SELECT *
         FROM chart_analysis_predictions
         WHERE symbol = #{symbol}
+          AND bot_type = #{botType}
         ORDER BY analysis_time DESC LIMIT 1;
     </select>
 

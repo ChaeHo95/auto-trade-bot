@@ -10,8 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -24,7 +22,6 @@ public class BinanceWebSocketClient extends WebSocketClient {
     private final BinanceFundingRateService fundingRateService;
     private final BinanceAggTradeService aggTradeService;
     private final ObjectMapper objectMapper;
-    private Timer pingTimer;
 
     // ✅ 재연결 관련 변수
     private static final int MAX_RECONNECT_ATTEMPTS = 10;
@@ -57,7 +54,6 @@ public class BinanceWebSocketClient extends WebSocketClient {
     public void onOpen(ServerHandshake handshakedata) {
         logger.info("✅ Binance WebSocket 연결 성공!");
         reconnectAttempts = 0;
-        startPing();
     }
 
     /**
@@ -170,73 +166,27 @@ public class BinanceWebSocketClient extends WebSocketClient {
         }
     }
 
-
     /**
-     * ✅ WebSocket 오류 발생 시 재연결 시도
+     * ✅ WebSocket 연결 종료 시 재연결 처리
      */
     @Override
-    public void onError(Exception ex) {
-        logger.error("❌ Binance WebSocket 오류 발생: ", ex);
-        // Ping 전송 오류가 발생하면 바로 재연결 시도하도록 추가
+    public void onClose(int code, String reason, boolean remote) {
+        logger.warn("❌ Binance WebSocket 연결 종료: {} {} {} ", code, reason, remote);
         reconnectWithDelay();
     }
 
 
     /**
-     * ✅ WebSocket Ping-Pong 유지 (3분마다 Ping 전송)
-     */
-    private void startPing() {
-        // 기존 타이머 취소
-        if (pingTimer != null) {
-            pingTimer.cancel();
-        }
-
-        // 새로운 타이머 시작
-        pingTimer = new Timer(true);
-        pingTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                sendPing();
-            }
-        }, 0, 3 * 60 * 1000); // 3분마다 Ping 전송
-    }
-
-    /**
-     * ✅ Binance WebSocket Ping 전송 (잘못된 JSON 방식 X)
+     * ✅ WebSocket 오류 발생 시 재연결
      */
     @Override
-    public void sendPing() {
-        try {
-            if (this.getConnection() != null && this.getConnection().isOpen()) {
-                this.getConnection().sendPing();
-                logger.info("📡 Ping 프레임 전송");
-            } else {
-                logger.error("❌ WebSocket 연결이 열려 있지 않습니다. Ping 전송 실패");
-            }
-        } catch (Exception e) {
-            logger.error("❌ Ping 전송 실패: ", e);
-        }
-    }
-
-
-    /**
-     * ✅ WebSocket 연결 종료 시 처리
-     */
-    @Override
-    public void onClose(int code, String reason, boolean remote) {
-        logger.warn("❌ Binance WebSocket 연결 종료: {} {} {} ", code, reason, remote);
-        if (pingTimer != null) {
-            pingTimer.cancel();
-        }
-
-        // ✅ 재연결 로직을 동기적으로 실행
-        if (remote) {
-            reconnectWithDelay(); // 별도의 쓰레드 없이 재연결 시도
-        }
+    public void onError(Exception ex) {
+        logger.error("❌ Binance WebSocket 오류 발생: ", ex);
+        reconnectWithDelay();
     }
 
     /**
-     * ✅ WebSocket 재연결 (별도 스레드에서 실행)
+     * ✅ WebSocket 재연결 (지수 백오프 적용)
      */
     private void reconnectWithDelay() {
         if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
@@ -246,8 +196,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
 
             try {
                 Thread.sleep(delay);
-                reconnect(); // WebSocket 재연결
-                startPing(); // 재연결 후 Ping 전송 시작
+                reconnect();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 logger.error("❌ 재연결 중단됨: ", e);

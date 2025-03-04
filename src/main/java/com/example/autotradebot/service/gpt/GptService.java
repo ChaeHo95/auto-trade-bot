@@ -29,7 +29,7 @@ public class GptService {
         try {
             // Create request body
             JsonObject requestBodyJson = new JsonObject();
-            requestBodyJson.addProperty("model", "gpt-4o-mini");
+            requestBodyJson.addProperty("model", "gpt-4o");
 
             JsonArray messages = new JsonArray();
             JsonObject systemMessageJson = new JsonObject();

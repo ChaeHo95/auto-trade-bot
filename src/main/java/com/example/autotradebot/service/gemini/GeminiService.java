@@ -35,32 +35,50 @@ public class GeminiService {
         JsonObject requestBody = createRequestBody(systemMessage, userMessage);
         return getGeminiResponse(requestBody);
     }
-
+    
     /**
      * ✅ Gemini API에 프롬프트 요청 후 응답 반환 (비동기 방식)
      */
     private String getGeminiResponse(JsonObject requestBody) {
         logger.info("📤 Sending request to Gemini API: {}", requestBody);
 
-        return webClient.post()
-                .bodyValue(requestBody.toString())
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnSuccess(response -> logger.info("📥 Received response from Gemini API: {}", response))
-                .flatMap(this::parseResponse)
-                .onErrorResume(error -> {
-                    logger.error("❌ Gemini API 호출 중 오류 발생: {}", error.getMessage());
-                    return Mono.just("❌ Gemini API 오류");
-                }).block();
+        try {
+            String response = webClient.post()
+                    .bodyValue(requestBody.toString())
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .doOnSuccess(res -> logger.info("📥 Received response from Gemini API: {}", res))
+                    .onErrorResume(error -> {
+                        logger.error("❌ Gemini API 호출 중 오류 발생: {}", error.getMessage());
+                        return Mono.just("❌ Gemini API 오류");
+                    })
+                    .block(); // ✅ 동기 실행
+
+            // ✅ 여기서 parseResponse 실행 후 결과 리턴
+            return parseResponse(response).block();
+
+        } catch (Exception e) {
+            logger.error("❌ Gemini API 호출 예외 발생: ", e);
+            return "❌ Gemini API 오류";
+        }
     }
 
     /**
-     * ✅ JSON 응답을 파싱하여 결과를 반환하는 메서드 (비동기 방식)
+     * ✅ JSON 응답을 파싱하여 'text' 필드만 반환하는 메서드 (비동기 방식)
      */
     private Mono<String> parseResponse(String responseBody) {
         try {
             JsonObject jsonResponse = JsonParser.parseString(responseBody).getAsJsonObject();
-            return Mono.just(jsonResponse.toString());
+            JsonArray candidates = jsonResponse.getAsJsonArray("candidates");
+            if (candidates != null && candidates.size() > 0) {
+                JsonObject firstCandidate = candidates.get(0).getAsJsonObject();
+                JsonObject content = firstCandidate.getAsJsonObject("content");
+                JsonArray parts = content.getAsJsonArray("parts");
+                if (parts != null && parts.size() > 0) {
+                    return Mono.just(parts.get(0).getAsJsonObject().get("text").getAsString());
+                }
+            }
+            return Mono.just("❌ 응답에 'text' 필드가 없음");
         } catch (Exception e) {
             logger.error("❌ 응답 파싱 중 오류 발생: {} 에러 메시지: {}", responseBody, e.getMessage(), e);
             return Mono.error(new RuntimeException("❌ 응답 파싱 오류: " + e.getMessage()));

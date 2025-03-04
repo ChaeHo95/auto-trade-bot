@@ -16,7 +16,7 @@ class ChartAnalysisServiceTest {
 
     @Test
     void scheduledChartAnalysis() {
-        chartAnalysisService.scheduledChartAnalysis("GEMINI", "XRPUSDT");
-        chartAnalysisService.scheduledChartAnalysis("CHATGPT", "XRPUSDT");
+        chartAnalysisService.scheduledChartAnalysis("XRPUSDT", "GEMINI");
+        chartAnalysisService.scheduledChartAnalysis("XRPUSDT", "CHATGPT");
     }
 }

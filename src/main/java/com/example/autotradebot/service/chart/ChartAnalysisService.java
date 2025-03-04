@@ -33,9 +33,7 @@ public class ChartAnalysisService {
     private final PredictionService predictionService;
 
     @Autowired
-    public ChartAnalysisService(ChartAnalysisCacheManager chartAnalysisCacheManager, GeminiService geminiService,
-                                MarketAnalysisService marketAnalysisService, PredictionService predictionService,
-                                PredictionCacheManager predictionCacheManager, GptService gptService) {
+    public ChartAnalysisService(ChartAnalysisCacheManager chartAnalysisCacheManager, GeminiService geminiService, MarketAnalysisService marketAnalysisService, PredictionService predictionService, PredictionCacheManager predictionCacheManager, GptService gptService) {
         this.geminiService = geminiService;
         this.chartAnalysisCacheManager = chartAnalysisCacheManager;
         this.marketAnalysisService = marketAnalysisService;
@@ -48,8 +46,13 @@ public class ChartAnalysisService {
      * ✅ 1분마다 호출되며, 심볼별로 15분이 지난 데이터만 다시 호출
      */
     public void scheduledChartAnalysis(String symbol, String bot) {
+        if (!bot.equals("GEMINI") && !bot.equals("CHATGPT")) {
+            return;
+        }
+
+
         // 1️⃣ 최근 차트 데이터 가져오기
-        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol);
+        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol, bot);
 
         // 2️⃣ 심볼별로 캐시된 분석 결과 가져오기
         PredictionDTO cachedPrediction = predictionCacheManager.getPrediction(bot, symbol);
@@ -62,7 +65,7 @@ public class ChartAnalysisService {
         }
 
         // 3️⃣ 캐시된 데이터가 없거나 15분 이상 지난 경우 호출
-        if (cachedPrediction == null || isDataExpired(cachedPrediction)) {
+        if (cachedPrediction == null || isDataExpired(cachedPrediction, bot)) {
             // 5️⃣ 변동성이 낮으면 15분 후에 다시 호출하도록 예약
             logger.info("변동성이 낮아 15분 후에 호출 예약");
             analyzeChart(symbol, marketData, bot);
@@ -82,52 +85,13 @@ public class ChartAnalysisService {
         String tradeSummary = convertTradeToJson(marketAnalysisDTO.getRecentTrades());
         String fundingSummary = convertFundingRateToJson(marketAnalysisDTO.getFundingRates());
         String aiAnalysis = convertAiAnalysisToJson(marketAnalysisDTO.getCurrentPosition());
-        String technicalIndicators = convertTechnicalIndicatorsToJson(
-                marketAnalysisDTO.getMovingAverage(),
-                marketAnalysisDTO.getRsiValue(),
-                marketAnalysisDTO.getMacdValue()
-        );
+        String technicalIndicators = convertTechnicalIndicatorsToJson(marketAnalysisDTO.getMovingAverage(), marketAnalysisDTO.getRsiValue(), marketAnalysisDTO.getMacdValue());
 
-        String systemMessage =
-                "You are a highly advanced crypto trading assistant specializing in analyzing market trends and price movements. "
-                        + "Your task is to evaluate the provided market data and generate a recommendation for the best trading position. "
-                        + "Please ensure to consider all the following factors when making your analysis:\n\n"
-                        + "- **Recent Price Movements (Candlestick Data):** Analyze recent price changes for understanding price direction.\n"
-                        + "- **RSI (Relative Strength Index):** Determine overbought or oversold conditions to gauge market strength.\n"
-                        + "- **MACD (Moving Average Convergence Divergence):** Identify momentum and potential reversals or continuations.\n"
-                        + "- **Moving Average (200-period):** Assess the overall market trend and compare it with short-term movements.\n"
-                        + "- **Funding Rate:** Understand market sentiment and liquidity to evaluate potential biases in market direction.\n"
-                        + "- **Recent Trading Volume:** Review recent trade volumes to assess the strength of price movements.\n\n"
-                        + "Based on your analysis, please provide the following recommendations in your response:\n\n"
-                        + "- **Trading Position:** Recommend whether to take a LONG, SHORT, EXIT, or WAIT position based on current market conditions.\n"
-                        + "- **Confidence Score:** Provide the level of confidence in your recommendation (percentage from 0 to 100).\n"
-                        + "- **Reasoning:** Explain the rationale behind your recommendation, referencing the market factors you considered.\n"
-                        + "- **Stop-Loss Price:** Suggest an appropriate stop-loss price to minimize potential losses.\n"
-                        + "- **Take-Profit Price:** Suggest a take-profit price based on the current market analysis.\n"
-                        + "- **Leverage Level:** Recommend a suitable leverage level based on the overall market conditions.\n\n"
-                        + "Please ensure that your recommendation is well-supported by the available data to make the most informed and accurate decision possible.";
+        String systemMessage = "You are a highly advanced crypto trading assistant specializing in analyzing market trends and price movements. " + "Your task is to evaluate the provided market data and generate a recommendation for the best trading position. " + "Please ensure to consider all the following factors when making your analysis:\n\n" + "- **Recent Price Movements (Candlestick Data):** Analyze recent price changes for understanding price direction.\n" + "- **RSI (Relative Strength Index):** Determine overbought or oversold conditions to gauge market strength.\n" + "- **MACD (Moving Average Convergence Divergence):** Identify momentum and potential reversals or continuations.\n" + "- **Moving Average (200-period):** Assess the overall market trend and compare it with short-term movements.\n" + "- **Funding Rate:** Understand market sentiment and liquidity to evaluate potential biases in market direction.\n" + "- **Recent Trading Volume:** Review recent trade volumes to assess the strength of price movements.\n\n" + "Based on your analysis, please provide the following recommendations in your response:\n\n" + "- **Trading Position:** Recommend whether to take a LONG, SHORT, EXIT, or WAIT position based on current market conditions.\n" + "- **Confidence Score:** Provide the level of confidence in your recommendation (percentage from 0 to 100).\n" + "- **Reasoning:** Explain the rationale behind your recommendation, referencing the market factors you considered.\n" + "- **Stop-Loss Price:** Suggest an appropriate stop-loss price to minimize potential losses.\n" + "- **Take-Profit Price:** Suggest a take-profit price based on the current market analysis.\n" + "- **Leverage Level:** Recommend a suitable leverage level based on the overall market conditions.\n\n" + "Please ensure that your recommendation is well-supported by the available data to make the most informed and accurate decision possible.";
 
 
         // 3️⃣ 사용자 데이터 입력 (전체 데이터 JSON 포함)
-        String userMessage = String.format(
-                "Analyze the following market data and predict the best trading position:\n\n"
-                        + "### Trading Symbol: %s\n\n"
-                        + "### Market Data (JSON Format):\n%s\n\n"
-                        + "### AI Previous Analysis (from last prediction):\n%s\n\n"
-                        + "### Technical Indicators:\n%s\n\n"
-                        + "### Your Response Format (JSON):\n"
-                        + "{\n"
-                        + "  \"symbol\": \"%s\",\n"
-                        + "  \"position\": \"LONG | SHORT | EXIT | WAIT\",\n"
-                        + "  \"confidence\": percentage (0-100),\n"
-                        + "  \"reason\": \"Explain why this position is recommended\",\n"
-                        + "  \"stopLoss\": \"Recommended stop-loss price\",\n"
-                        + "  \"takeProfit\": \"Recommended take-profit price\",\n"
-                        + "  \"leverage\": \"Suggested leverage level (if applicable)\"\n"
-                        + "}\n",
-                marketAnalysisDTO.getSymbol(), klineSummary, tradeSummary, fundingSummary, aiAnalysis,
-                technicalIndicators, marketAnalysisDTO.getSymbol()
-        );
+        String userMessage = String.format("Analyze the following market data and predict the best trading position:\n\n" + "### Trading Symbol: %s\n\n" + "### Market Data (JSON Format):\n%s\n\n" + "### AI Previous Analysis (from last prediction):\n%s\n\n" + "### Technical Indicators:\n%s\n\n" + "### Your Response Format (JSON):\n" + "{\n" + "  \"symbol\": \"%s\",\n" + "  \"position\": \"LONG | SHORT | EXIT | WAIT\",\n" + "  \"confidence\": percentage (0-100),\n" + "  \"reason\": \"Explain why this position is recommended\",\n" + "  \"stopLoss\": \"Recommended stop-loss price\",\n" + "  \"takeProfit\": \"Recommended take-profit price\",\n" + "  \"leverage\": \"Suggested leverage level (if applicable)\"\n" + "}\n", marketAnalysisDTO.getSymbol(), klineSummary, tradeSummary, fundingSummary, aiAnalysis, technicalIndicators, marketAnalysisDTO.getSymbol());
 
 
         // 3️⃣ OpenAI API 호출
@@ -147,86 +111,53 @@ public class ChartAnalysisService {
         reader.setLenient(true);  // lenient 파싱 허용
         JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
 
-        return mapToChartAnalysisPredictionDTO(jsonObject, marketAnalysisDTO);
+        return mapToChartAnalysisPredictionDTO(bot, jsonObject, marketAnalysisDTO);
     }
 
 
     // ✅ 최근 200개 캔들 데이터 JSON 변환
     private String convertKlineToJson(List<MarketAnalysisKlineDTO> marketAnalysisKlineDTOS) {
-        return marketAnalysisKlineDTOS.stream()
-                .map(kline -> String.format(
-                        "{ \"openTime\": %d, \"openPrice\": %.2f, \"highPrice\": %.2f, \"lowPrice\": %.2f, \"closePrice\": %.2f, \"volume\": %.2f, \"closeTime\": %d }",
-                        kline.getOpenTime(), kline.getOpenPrice(), kline.getHighPrice(),
-                        kline.getLowPrice(), kline.getClosePrice(), kline.getVolume(), kline.getCloseTime()
-                ))
-                .collect(Collectors.joining(",\n"));
+        return marketAnalysisKlineDTOS.stream().map(kline -> String.format("{ \"openTime\": %d, \"openPrice\": %.2f, \"highPrice\": %.2f, \"lowPrice\": %.2f, \"closePrice\": %.2f, \"volume\": %.2f, \"closeTime\": %d }", kline.getOpenTime(), kline.getOpenPrice(), kline.getHighPrice(), kline.getLowPrice(), kline.getClosePrice(), kline.getVolume(), kline.getCloseTime())).collect(Collectors.joining(",\n"));
     }
 
     // ✅ 최근 100개 체결 거래 데이터 JSON 변환
     private String convertTradeToJson(List<MarketAnalysisTradeDTO> marketAnalysisTradeDTOS) {
-        return marketAnalysisTradeDTOS.stream()
-                .map(trade -> String.format(
-                        "{ \"tradeId\": %d, \"price\": %.2f, \"quantity\": %.2f, \"tradeTime\": %d, \"isBuyerMaker\": %b }",
-                        trade.getTradeId(), trade.getPrice(), trade.getQuantity(), trade.getTradeTime(),
-                        trade.getIsBuyerMaker()
-                ))
-                .collect(Collectors.joining(",\n"));
+        return marketAnalysisTradeDTOS.stream().map(trade -> String.format("{ \"tradeId\": %d, \"price\": %.2f, \"quantity\": %.2f, \"tradeTime\": %d, \"isBuyerMaker\": %b }", trade.getTradeId(), trade.getPrice(), trade.getQuantity(), trade.getTradeTime(), trade.getIsBuyerMaker())).collect(Collectors.joining(",\n"));
     }
 
     // ✅ 최근 20개 펀딩 비율 데이터 JSON 변환
     private String convertFundingRateToJson(List<MarketAnalysisFundingRateDTO> marketAnalysisFundingRateDTOS) {
-        return marketAnalysisFundingRateDTOS.stream()
-                .map(funding -> String.format(
-                        "{ \"fundingTime\": %d, \"fundingRate\": %.6f, \"symbol\": \"%s\" }",
-                        funding.getFundingTime(), funding.getFundingRate(), funding.getSymbol()
-                ))
-                .collect(Collectors.joining(",\n"));
+        return marketAnalysisFundingRateDTOS.stream().map(funding -> String.format("{ \"fundingTime\": %d, \"fundingRate\": %.6f, \"symbol\": \"%s\" }", funding.getFundingTime(), funding.getFundingRate(), funding.getSymbol())).collect(Collectors.joining(",\n"));
     }
 
     // ✅ AI 분석 데이터 JSON 변환
     private String convertAiAnalysisToJson(PredictionDTO predictionDTO) {
-        return predictionDTO != null ? String.format(
-                "{ \"symbol\": \"%s\", \"analysisTime\": \"%s\", \"recommendedPosition\": \"%s\", \"confidenceScore\": %.2f, \"movingAverage\": %.2f, \"rsiValue\": %.2f, \"macdValue\": %.2f, \"volatility\": %.2f, \"fundingRate\": %.6f, \"tradeVolume\": %.2f, \"reason\": \"%s\", \"createdAt\": \"%s\" }",
-                predictionDTO.getSymbol(),
-                predictionDTO.getAnalysisTime(),
-                predictionDTO.getRecommendedPosition(),
-                predictionDTO.getConfidenceScore(),
-                predictionDTO.getMovingAverage(),
-                predictionDTO.getRsiValue(),
-                predictionDTO.getMacdValue(),
-                predictionDTO.getVolatility(),
-                predictionDTO.getFundingRate(),
-                predictionDTO.getTradeVolume(),
-                predictionDTO.getReason(),
-                predictionDTO.getCreatedAt()
-        ) : "{}";
+        return predictionDTO != null ? String.format("{ \"symbol\": \"%s\", \"analysisTime\": \"%s\", \"recommendedPosition\": \"%s\", \"confidenceScore\": %.2f, \"movingAverage\": %.2f, \"rsiValue\": %.2f, \"macdValue\": %.2f, \"volatility\": %.2f, \"fundingRate\": %.6f, \"tradeVolume\": %.2f, \"reason\": \"%s\" }", predictionDTO.getSymbol(), predictionDTO.getAnalysisTime(), predictionDTO.getRecommendedPosition(), predictionDTO.getConfidenceScore(), predictionDTO.getMovingAverage(), predictionDTO.getRsiValue(), predictionDTO.getMacdValue(), predictionDTO.getVolatility(), predictionDTO.getFundingRate(), predictionDTO.getTradeVolume(), predictionDTO.getReason()) : "{}";
     }
 
     // ✅ 기술 지표들 (이동평균선, RSI, MACD 값) JSON 변환
     private String convertTechnicalIndicatorsToJson(BigDecimal movingAverage, BigDecimal rsiValue, BigDecimal macdValue) {
-        return String.format(
-                "{ \"movingAverage\": %.2f, \"rsiValue\": %.2f, \"macdValue\": %.2f }",
-                movingAverage, rsiValue, macdValue
-        );
+        return String.format("{ \"movingAverage\": %.2f, \"rsiValue\": %.2f, \"macdValue\": %.2f }", movingAverage, rsiValue, macdValue);
     }
 
-    private PredictionDTO mapToChartAnalysisPredictionDTO(JsonObject jsonResponse, MarketAnalysisDTO marketAnalysisDTO) {
+    private PredictionDTO mapToChartAnalysisPredictionDTO(String bot, JsonObject jsonResponse, MarketAnalysisDTO marketAnalysisDTO) {
 
         // 각 필드에 대해 null 체크 및 "N/A" 값 처리
         BigDecimal movingAverage = (marketAnalysisDTO.getMovingAverage() != null) ? marketAnalysisDTO.getMovingAverage() : BigDecimal.ZERO;
         BigDecimal rsiValue = (marketAnalysisDTO.getRsiValue() != null) ? marketAnalysisDTO.getRsiValue() : BigDecimal.ZERO;
         BigDecimal macdValue = (marketAnalysisDTO.getMacdValue() != null) ? marketAnalysisDTO.getMacdValue() : BigDecimal.ZERO;
         BigDecimal volatility = (marketAnalysisDTO.getMacdValue() != null) ? marketAnalysisDTO.getMacdValue() : BigDecimal.ZERO;
-        BigDecimal fundingRate = marketAnalysisDTO.getFundingRates().stream()
-                .map(MarketAnalysisFundingRateDTO::getFundingRate) // 각 펀딩 비율을 가져옵니다.
+        BigDecimal fundingRate = marketAnalysisDTO.getFundingRates().stream().map(MarketAnalysisFundingRateDTO::getFundingRate) // 각 펀딩 비율을 가져옵니다.
                 .reduce(BigDecimal.ZERO, BigDecimal::add); // 모든 펀딩 비율을 더합니다. 초기값은 0
-        BigDecimal tradeVolume = marketAnalysisDTO.getRecentTrades().stream()
-                .map(MarketAnalysisTradeDTO::getQuantity) // 각 거래의 거래량을 가져옵니다.
+        BigDecimal tradeVolume = marketAnalysisDTO.getRecentTrades().stream().map(MarketAnalysisTradeDTO::getQuantity) // 각 거래의 거래량을 가져옵니다.
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 포지션과 신뢰도
-        String position = jsonResponse.has("position") ? jsonResponse.get("position").getAsString() : "WAIT";
-        String reason = jsonResponse.has("reason") ? jsonResponse.get("reason").getAsString() : "";
+        String position = getSafeJsonString(jsonResponse, "position", "WAIT");
+        String reason = getSafeJsonString(jsonResponse, "reason", "N/A");
+        String stopLoss = getSafeJsonString(jsonResponse, "stopLoss", "N/A");
+        String takeProfit = getSafeJsonString(jsonResponse, "takeProfit", "N/A");
+        String leverage = getSafeJsonString(jsonResponse, "leverage", "N/A");
         BigDecimal confidence = jsonResponse.has("confidence") ? jsonResponse.get("confidence").getAsBigDecimal() : BigDecimal.ZERO;
 
         // 값이 모두 null일 경우 예외 처리나 경고 추가 (필요에 따라)
@@ -239,15 +170,16 @@ public class ChartAnalysisService {
                 .position(position)
                 .confidence(confidence)
                 .reason(reason)
-                .stopLoss(jsonResponse.has("stopLoss") ? jsonResponse.get("stopLoss").getAsString() : "N/A")
-                .takeProfit(jsonResponse.has("takeProfit") ? jsonResponse.get("takeProfit").getAsString() : "N/A")
-                .leverage(jsonResponse.has("getAsBigDecimal") ? jsonResponse.get("getAsBigDecimal").getAsString() : "N/A")
+                .stopLoss(stopLoss)
+                .takeProfit(takeProfit)
+                .leverage(leverage)
                 .build();
 
         // 캐시 저장
         chartAnalysisCacheManager.putChartAnalysis(marketAnalysisDTO.getSymbol(), chartAnalysisDTO);
 
         return PredictionDTO.builder()
+                .botType(bot)
                 .symbol(marketAnalysisDTO.getSymbol())
                 .analysisTime(LocalDateTime.now()) // 현재 분석 시각
                 .recommendedPosition(position) // 포지션 (LONG, SHORT, EXIT, WAIT)
@@ -258,17 +190,21 @@ public class ChartAnalysisService {
                 .volatility(volatility) // 변동성
                 .fundingRate(fundingRate) // 펀딩 비율
                 .tradeVolume(tradeVolume) // 거래량
-                .createdAt(LocalDateTime.now()) // 데이터 생성 시각
-                .reason(reason)
-                .build();
+                .reason(reason).build();
     }
 
 
     /**
      * ✅ 데이터가 30분 이상 경과했는지 확인
      */
-    private boolean isDataExpired(PredictionDTO cachedPrediction) {
-        return cachedPrediction.getAnalysisTime().isBefore(LocalDateTime.now().minusMinutes(30));
+    private boolean isDataExpired(PredictionDTO cachedPrediction, String bot) {
+        if (bot.equals("GEMINI")) {
+            return cachedPrediction.getAnalysisTime().isBefore(LocalDateTime.now().minusMinutes(5));
+        } else if (bot.equals("CHATGPT")) {
+            return cachedPrediction.getAnalysisTime().isBefore(LocalDateTime.now().minusMinutes(30));
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -308,6 +244,10 @@ public class ChartAnalysisService {
         predictionCacheManager.putPrediction(bot, symbol, predictionDTO); // 캐시 저장
 
         // 8️⃣ DB에도 결과 저장
-        predictionService.savePrediction(bot, predictionDTO); // DB 저장
+        predictionService.savePrediction(predictionDTO); // DB 저장
+    }
+
+    private String getSafeJsonString(JsonObject json, String key, String defaultValue) {
+        return (json.has(key) && !json.get(key).isJsonNull()) ? json.get(key).getAsString() : defaultValue;
     }
 }

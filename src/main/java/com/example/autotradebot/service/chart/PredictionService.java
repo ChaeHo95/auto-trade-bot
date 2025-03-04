@@ -25,7 +25,7 @@ public class PredictionService {
     /**
      * ✅ AI 분석 결과 저장
      */
-    public void savePrediction(String bot, PredictionDTO prediction) {
-        predictionMapper.savePrediction(bot, prediction);
+    public void savePrediction(PredictionDTO prediction) {
+        predictionMapper.savePrediction(prediction);
     }
 }

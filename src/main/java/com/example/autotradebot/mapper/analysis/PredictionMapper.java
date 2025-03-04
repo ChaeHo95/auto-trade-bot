@@ -11,5 +11,5 @@ public interface PredictionMapper {
     PredictionDTO getLatestPrediction(@Param("symbol") String symbol);
 
     // ✅ AI 분석 결과 저장
-    void savePrediction(@Param("bot_type") String bot, PredictionDTO prediction);
+    void savePrediction(PredictionDTO prediction);
 }

@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @Builder
 public class PredictionDTO {
     private Long id; // ✅ 차트 분석 결과 ID
+    private String botType; // ✅ 차트 분석 결과 ID
     private String symbol; // ✅ 거래 심볼 (예: BTCUSDT)
     private LocalDateTime analysisTime; // ✅ 분석 수행 시각
     private String recommendedPosition; // ✅ AI 예측 포지션 (LONG, SHORT, EXIT, WAIT)
@@ -23,6 +24,5 @@ public class PredictionDTO {
     private BigDecimal volatility; // ✅ 변동성 (최근 캔들 기준)
     private BigDecimal fundingRate; // ✅ 최근 펀딩 비율
     private BigDecimal tradeVolume; // ✅ 거래량
-    private LocalDateTime createdAt; // ✅ 데이터 생성 시각
     private String reason; // ✅ AI 분석의 이유 및 설명
 }

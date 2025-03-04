@@ -23,7 +23,7 @@ public interface MarketAnalysisMapper {
     List<BinanceFundingRateDTO> getFundingRates(@Param("symbol") String symbol);
 
     // ✅ AI 차트 분석 정보 조회
-    PredictionDTO getChartAnalysis(@Param("symbol") String symbol);
+    PredictionDTO getChartAnalysis(@Param("symbol") String symbol, @Param("botType") String botType);
 
     // ✅ 이동 평균값 조회 (200개 캔들 기준)
     BigDecimal getMovingAverage(@Param("symbol") String symbol);

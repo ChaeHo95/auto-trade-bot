@@ -22,7 +22,7 @@ public class MarketAnalysisService {
     /**
      * ✅ AI 분석용 데이터 개별적으로 가져오기 및 설정
      */
-    public MarketAnalysisDTO getMarketAnalysis(String symbol) {
+    public MarketAnalysisDTO getMarketAnalysis(String symbol, String botType) {
         // 1️⃣ 심볼 설정
         MarketAnalysisDTO.MarketAnalysisDTOBuilder analysisBuilder = MarketAnalysisDTO.builder()
                 .symbol(symbol);
@@ -43,7 +43,7 @@ public class MarketAnalysisService {
                     .collect(Collectors.toList());
             analysisBuilder.recentKlines(recentKlines);
         } catch (Exception e) {
-            System.err.println("e = " + e);
+            System.err.println("recentKlines e = " + e);
         }
 
         try {
@@ -59,7 +59,7 @@ public class MarketAnalysisService {
                     .collect(Collectors.toList());
             analysisBuilder.recentTrades(recentTrades);
         } catch (Exception e) {
-            System.err.println("e = " + e);
+            System.err.println("recentTrades e = " + e);
         }
 
 
@@ -77,15 +77,15 @@ public class MarketAnalysisService {
             analysisBuilder.fundingRates(fundingRates);
 
         } catch (Exception e) {
-            System.err.println("e = " + e);
+            System.err.println("fundingRates e = " + e);
         }
 
         try {
             // 5️⃣ AI 분석 예측 정보 가져오기
-            PredictionDTO chartAnalysis = marketAnalysisMapper.getChartAnalysis(symbol);
+            PredictionDTO chartAnalysis = marketAnalysisMapper.getChartAnalysis(symbol, botType);
             analysisBuilder.currentPosition(chartAnalysis);
         } catch (Exception e) {
-            System.err.println("e = " + e);
+            System.err.println("chartAnalysis e = " + e);
         }
 
         try {
@@ -93,7 +93,7 @@ public class MarketAnalysisService {
             BigDecimal movingAverage = marketAnalysisMapper.getMovingAverage(symbol);
             analysisBuilder.movingAverage(movingAverage);
         } catch (Exception e) {
-            System.err.println("e = " + e);
+            System.err.println("movingAverage e = " + e);
         }
 
         try {
@@ -101,7 +101,7 @@ public class MarketAnalysisService {
             BigDecimal rsiValue = marketAnalysisMapper.getRSIValue(symbol);
             analysisBuilder.rsiValue(rsiValue);
         } catch (Exception e) {
-            System.err.println("e = " + e);
+            System.err.println("rsiValue e = " + e);
         }
 
         try {

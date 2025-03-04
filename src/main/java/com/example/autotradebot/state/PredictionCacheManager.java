@@ -26,6 +26,10 @@ public class PredictionCacheManager {
 
     // 캐시에서 데이터 조회
     public PredictionDTO getPrediction(String bot, String symbol) {
-        return predictionCache.get(bot).get(symbol);
+        if (predictionCache.get(bot) == null) {
+            return null;
+        } else {
+            return predictionCache.get(bot).get(symbol);
+        }
     }
 }

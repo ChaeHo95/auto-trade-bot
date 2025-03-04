@@ -17,8 +17,7 @@
                macd_value,
                volatility,
                funding_rate,
-               trade_volume,
-               created_at
+               trade_volume
         FROM chart_analysis_predictions
         WHERE symbol = #{symbol}
         ORDER BY analysis_time DESC LIMIT 1;
@@ -28,9 +27,9 @@
     <insert id="savePrediction">
         INSERT INTO chart_analysis_predictions
         (bot_type, symbol, analysis_time, recommended_position, confidence_score, moving_average, rsi_value,
-         macd_value, volatility, funding_rate, trade_volume, reason, created_at)
-        VALUES (#{bot_type}, #{symbol}, #{analysisTime}, #{recommendedPosition}, #{confidenceScore}, #{movingAverage},
-                #{rsiValue}, #{macdValue}, #{volatility}, #{fundingRate}, #{tradeVolume}, #{reason}, NOW());
+         macd_value, volatility, funding_rate, trade_volume, reason)
+        VALUES (#{botType}, #{symbol}, #{analysisTime}, #{recommendedPosition}, #{confidenceScore}, #{movingAverage},
+                #{rsiValue}, #{macdValue}, #{volatility}, #{fundingRate}, #{tradeVolume}, #{reason});
     </insert>
 
 </mapper>
