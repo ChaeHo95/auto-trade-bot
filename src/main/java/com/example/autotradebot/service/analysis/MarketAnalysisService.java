@@ -82,7 +82,7 @@ public class MarketAnalysisService {
 
         try {
             // 5️⃣ AI 분석 예측 정보 가져오기
-            ChartAnalysisPredictionDTO chartAnalysis = marketAnalysisMapper.getChartAnalysis(symbol);
+            PredictionDTO chartAnalysis = marketAnalysisMapper.getChartAnalysis(symbol);
             analysisBuilder.currentPosition(chartAnalysis);
         } catch (Exception e) {
             System.err.println("e = " + e);

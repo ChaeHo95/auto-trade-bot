@@ -2,11 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.example.autotradebot.mapper.analysis.ChartAnalysisPredictionMapper">
+<mapper namespace="com.example.autotradebot.mapper.analysis.PredictionMapper">
 
     <!-- ✅ 최신 AI 분석 결과 가져오기 -->
-    <select id="getLatestPrediction" resultType="com.example.autotradebot.dto.analysis.ChartAnalysisPredictionDTO">
+    <select id="getLatestPrediction" resultType="com.example.autotradebot.dto.analysis.PredictionDTO">
         SELECT id,
+               bot_type,
                symbol,
                analysis_time,
                recommended_position,
@@ -26,9 +27,9 @@
     <!-- ✅ AI 분석 결과 저장 -->
     <insert id="savePrediction">
         INSERT INTO chart_analysis_predictions
-        (symbol, analysis_time, recommended_position, confidence_score, moving_average, rsi_value,
+        (bot_type, symbol, analysis_time, recommended_position, confidence_score, moving_average, rsi_value,
          macd_value, volatility, funding_rate, trade_volume, reason, created_at)
-        VALUES (#{symbol}, #{analysisTime}, #{recommendedPosition}, #{confidenceScore}, #{movingAverage},
+        VALUES (#{bot_type}, #{symbol}, #{analysisTime}, #{recommendedPosition}, #{confidenceScore}, #{movingAverage},
                 #{rsiValue}, #{macdValue}, #{volatility}, #{fundingRate}, #{tradeVolume}, #{reason}, NOW());
     </insert>
 

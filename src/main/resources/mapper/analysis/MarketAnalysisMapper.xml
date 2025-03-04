@@ -36,7 +36,7 @@
     </select>
 
     <!-- ✅ AI 분석 예측 정보 -->
-    <select id="getChartAnalysis" resultType="com.example.autotradebot.dto.analysis.ChartAnalysisPredictionDTO">
+    <select id="getChartAnalysis" resultType="com.example.autotradebot.dto.analysis.PredictionDTO">
         SELECT symbol,
                IFNULL(recommended_position, 'WAIT') AS recommended_position,
                IFNULL(confidence_score, 0.00)       AS confidence_score,

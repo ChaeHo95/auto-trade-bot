@@ -1,18 +1,18 @@
-package com.example.autotradebot.service.gpt;
+package com.example.autotradebot.service.chart;
 
 import com.example.autotradebot.dto.analysis.*;
-import com.example.autotradebot.dto.bot.OpenAiResponseDTO;
+import com.example.autotradebot.service.analysis.MarketAnalysisService;
+import com.example.autotradebot.service.gemini.GeminiService;
+import com.example.autotradebot.service.gpt.GptService;
 import com.example.autotradebot.state.ChartAnalysisCacheManager;
-import com.google.gson.JsonArray;
+import com.example.autotradebot.state.PredictionCacheManager;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.StringReader;
 import java.math.BigDecimal;
@@ -21,23 +21,61 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-public class GPTService {
+public class ChartAnalysisService {
 
-    private Logger logger = LoggerFactory.getLogger(GPTService.class);
-    private final WebClient webClient;
+    private Logger logger = LoggerFactory.getLogger(ChartAnalysisService.class);
 
     private final ChartAnalysisCacheManager chartAnalysisCacheManager;
+    private final GeminiService geminiService;
+    private final GptService gptService;
+    private final MarketAnalysisService marketAnalysisService;
+    private final PredictionCacheManager predictionCacheManager;
+    private final PredictionService predictionService;
 
     @Autowired
-    public GPTService(ChartAnalysisCacheManager chartAnalysisCacheManager, @Qualifier("openAiApiClient") WebClient openAiApiClient) {
-        this.webClient = openAiApiClient;
+    public ChartAnalysisService(ChartAnalysisCacheManager chartAnalysisCacheManager, GeminiService geminiService,
+                                MarketAnalysisService marketAnalysisService, PredictionService predictionService,
+                                PredictionCacheManager predictionCacheManager, GptService gptService) {
+        this.geminiService = geminiService;
         this.chartAnalysisCacheManager = chartAnalysisCacheManager;
+        this.marketAnalysisService = marketAnalysisService;
+        this.predictionCacheManager = predictionCacheManager;
+        this.predictionService = predictionService;
+        this.gptService = gptService;
     }
 
     /**
-     * ✅ GPT-4o에게 차트 분석 요청을 보냄
+     * ✅ 1분마다 호출되며, 심볼별로 15분이 지난 데이터만 다시 호출
      */
-    public ChartAnalysisPredictionDTO requestChartAnalysis(MarketAnalysisDTO marketAnalysisDTO) {
+    public void scheduledChartAnalysis(String symbol, String bot) {
+        // 1️⃣ 최근 차트 데이터 가져오기
+        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol);
+
+        // 2️⃣ 심볼별로 캐시된 분석 결과 가져오기
+        PredictionDTO cachedPrediction = predictionCacheManager.getPrediction(bot, symbol);
+
+        if (isVolatilityHigh(marketData, bot, symbol)) {
+            // 변동성이 높거나, 캐시와 현재 데이터의 변동률 차이가 크므로 즉시 GPT 호출
+            logger.info("변동성이 높거나, 캐시된 데이터와 변동률 차이가 커서 즉시 GPT 호출");
+            analyzeChart(symbol, marketData, bot);
+            return; // 호출 후 바로 종료
+        }
+
+        // 3️⃣ 캐시된 데이터가 없거나 15분 이상 지난 경우 호출
+        if (cachedPrediction == null || isDataExpired(cachedPrediction)) {
+            // 5️⃣ 변동성이 낮으면 15분 후에 다시 호출하도록 예약
+            logger.info("변동성이 낮아 15분 후에 호출 예약");
+            analyzeChart(symbol, marketData, bot);
+        } else {
+            logger.info("캐시된 데이터가 존재하고 15분 이내이므로 GPT 호출 생략");
+        }
+    }
+
+
+    /**
+     * ✅차트 분석 요청을 보냄
+     */
+    private PredictionDTO chartAnalysis(MarketAnalysisDTO marketAnalysisDTO, String bot) {
 
         // 1️⃣ 각 데이터를 JSON 형식으로 변환
         String klineSummary = convertKlineToJson(marketAnalysisDTO.getRecentKlines());
@@ -93,85 +131,23 @@ public class GPTService {
 
 
         // 3️⃣ OpenAI API 호출
-        ChartAnalysisPredictionDTO responseDto = callOpenAiApi(systemMessage, userMessage, marketAnalysisDTO);
+        String response = null;
 
-        // 4️⃣ 응답이 존재하면 첫 번째 결과 가져오기
-        if (responseDto != null) {
-            return responseDto;
+        if (bot.equals("GEMINI")) {
+            response = geminiService.callGeminiAiApi(systemMessage, userMessage);
+        } else if (bot.equals("CHATGPT")) {
+            response = gptService.callOpenAiApi(systemMessage, userMessage);
         }
 
-        return null;
-    }
-
-
-    /**
-     * WebClient를 이용하여 OpenAI API 호출
-     */
-    private ChartAnalysisPredictionDTO callOpenAiApi(String systemMessage, String userMessage, MarketAnalysisDTO marketAnalysisDTO) {
-        try {
-            // Create request body
-            JsonObject requestBodyJson = new JsonObject();
-            requestBodyJson.addProperty("model", "gpt-4o-mini");
-
-            JsonArray messages = new JsonArray();
-            JsonObject systemMessageJson = new JsonObject();
-            systemMessageJson.addProperty("role", "system");
-            systemMessageJson.addProperty("content", systemMessage);
-            messages.add(systemMessageJson);
-
-            JsonObject userMessageJson = new JsonObject();
-            userMessageJson.addProperty("role", "user");
-            userMessageJson.addProperty("content", userMessage);
-            messages.add(userMessageJson);
-
-            requestBodyJson.add("messages", messages);
-            requestBodyJson.addProperty("temperature", 0.7);
-
-            String requestBody = requestBodyJson.toString();
-
-            // Make API call to OpenAI
-            OpenAiResponseDTO response = webClient.post()
-                    .uri("/chat/completions")
-                    .header("Content-Type", "application/json")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(OpenAiResponseDTO.class)
-                    .block();
-
-            if (response != null) {
-                logger.info("OpenAI response: {}", response);
-
-                // Parse the message content from the response
-                String content = null;
-                if (response.getChoices() != null && !response.getChoices().isEmpty()) {
-                    // Assuming we want the content of the first choice
-                    content = response.getChoices().get(0).getMessage().getContent();
-                }
-
-                if (content != null) {
-                    logger.info("Received content: {}", content);
-
-                    String cleanedResponseText = content.replace("```json", "").replace("```", "").trim();
-                    // JsonObject로 응답을 파싱
-                    JsonReader reader = new JsonReader(new StringReader(cleanedResponseText));
-
-                    reader.setLenient(true);  // lenient 파싱 허용
-                    JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
-
-                    return mapToChartAnalysisPredictionDTO(jsonObject, marketAnalysisDTO);
-                } else {
-                    logger.error("No valid content found in the OpenAI response.");
-                }
-            } else {
-                logger.error("No response from OpenAI API.");
-                return null;
-            }
-
-            return null;
-        } catch (Exception e) {
-            logger.error("Error calling OpenAI API", e);
+        if (response == null) {
             return null;
         }
+
+        JsonReader reader = new JsonReader(new StringReader(response));
+        reader.setLenient(true);  // lenient 파싱 허용
+        JsonObject jsonObject = JsonParser.parseReader(reader).getAsJsonObject();
+
+        return mapToChartAnalysisPredictionDTO(jsonObject, marketAnalysisDTO);
     }
 
 
@@ -208,21 +184,21 @@ public class GPTService {
     }
 
     // ✅ AI 분석 데이터 JSON 변환
-    private String convertAiAnalysisToJson(ChartAnalysisPredictionDTO chartAnalysisPredictionDTO) {
-        return chartAnalysisPredictionDTO != null ? String.format(
+    private String convertAiAnalysisToJson(PredictionDTO predictionDTO) {
+        return predictionDTO != null ? String.format(
                 "{ \"symbol\": \"%s\", \"analysisTime\": \"%s\", \"recommendedPosition\": \"%s\", \"confidenceScore\": %.2f, \"movingAverage\": %.2f, \"rsiValue\": %.2f, \"macdValue\": %.2f, \"volatility\": %.2f, \"fundingRate\": %.6f, \"tradeVolume\": %.2f, \"reason\": \"%s\", \"createdAt\": \"%s\" }",
-                chartAnalysisPredictionDTO.getSymbol(),
-                chartAnalysisPredictionDTO.getAnalysisTime(),
-                chartAnalysisPredictionDTO.getRecommendedPosition(),
-                chartAnalysisPredictionDTO.getConfidenceScore(),
-                chartAnalysisPredictionDTO.getMovingAverage(),
-                chartAnalysisPredictionDTO.getRsiValue(),
-                chartAnalysisPredictionDTO.getMacdValue(),
-                chartAnalysisPredictionDTO.getVolatility(),
-                chartAnalysisPredictionDTO.getFundingRate(),
-                chartAnalysisPredictionDTO.getTradeVolume(),
-                chartAnalysisPredictionDTO.getReason(),
-                chartAnalysisPredictionDTO.getCreatedAt()
+                predictionDTO.getSymbol(),
+                predictionDTO.getAnalysisTime(),
+                predictionDTO.getRecommendedPosition(),
+                predictionDTO.getConfidenceScore(),
+                predictionDTO.getMovingAverage(),
+                predictionDTO.getRsiValue(),
+                predictionDTO.getMacdValue(),
+                predictionDTO.getVolatility(),
+                predictionDTO.getFundingRate(),
+                predictionDTO.getTradeVolume(),
+                predictionDTO.getReason(),
+                predictionDTO.getCreatedAt()
         ) : "{}";
     }
 
@@ -234,7 +210,7 @@ public class GPTService {
         );
     }
 
-    private ChartAnalysisPredictionDTO mapToChartAnalysisPredictionDTO(JsonObject jsonResponse, MarketAnalysisDTO marketAnalysisDTO) {
+    private PredictionDTO mapToChartAnalysisPredictionDTO(JsonObject jsonResponse, MarketAnalysisDTO marketAnalysisDTO) {
 
         // 각 필드에 대해 null 체크 및 "N/A" 값 처리
         BigDecimal movingAverage = (marketAnalysisDTO.getMovingAverage() != null) ? marketAnalysisDTO.getMovingAverage() : BigDecimal.ZERO;
@@ -271,7 +247,7 @@ public class GPTService {
         // 캐시 저장
         chartAnalysisCacheManager.putChartAnalysis(marketAnalysisDTO.getSymbol(), chartAnalysisDTO);
 
-        return ChartAnalysisPredictionDTO.builder()
+        return PredictionDTO.builder()
                 .symbol(marketAnalysisDTO.getSymbol())
                 .analysisTime(LocalDateTime.now()) // 현재 분석 시각
                 .recommendedPosition(position) // 포지션 (LONG, SHORT, EXIT, WAIT)
@@ -285,5 +261,53 @@ public class GPTService {
                 .createdAt(LocalDateTime.now()) // 데이터 생성 시각
                 .reason(reason)
                 .build();
+    }
+
+
+    /**
+     * ✅ 데이터가 30분 이상 경과했는지 확인
+     */
+    private boolean isDataExpired(PredictionDTO cachedPrediction) {
+        return cachedPrediction.getAnalysisTime().isBefore(LocalDateTime.now().minusMinutes(30));
+    }
+
+    /**
+     * ✅ 변동성 체크 로직 (최근 15분 변동성이 클 경우 true 반환)
+     */
+    private boolean isVolatilityHigh(MarketAnalysisDTO marketData, String bot, String symbol) {
+        // 1️⃣ 캐시된 예측 결과 가져오기
+        PredictionDTO cachedPrediction = predictionCacheManager.getPrediction(bot, symbol);
+
+        // 캐시된 데이터가 없거나 변동성을 계산할 수 없으면 false로 처리
+        if (cachedPrediction == null) {
+            logger.info("캐시된 데이터가 없어서 변동성 체크를 할 수 없습니다.");
+            return false;
+        }
+
+        // 2️⃣ 현재 데이터와 캐시된 데이터의 종가 가져오기
+        BigDecimal lastClose = marketData.getRecentKlines().get(0).getClosePrice();
+        BigDecimal cachedClose = cachedPrediction.getMovingAverage(); // 캐시된 데이터에서 마지막 이동평균 가져오기 (필요에 맞게 수정)
+
+        // 3️⃣ 현재 데이터와 캐시된 데이터의 변동률 계산
+        BigDecimal volatility = lastClose.subtract(cachedClose).abs()  // 절대값으로 차이 계산
+                .divide(cachedClose, BigDecimal.ROUND_HALF_UP)  // 백분율 계산
+                .multiply(BigDecimal.valueOf(3)); // 변동률 %
+
+        // 4️⃣ 변동률이 3% 이상일 경우 true 반환
+        return volatility.compareTo(BigDecimal.valueOf(3.0)) > 0; // 3% 이상 변동 시 true 반환
+    }
+
+    /**
+     * ✅ 차트 분석 요청 및 결과 저장
+     */
+    private void analyzeChart(String symbol, MarketAnalysisDTO marketData, String bot) {
+
+        PredictionDTO predictionDTO = chartAnalysis(marketData, bot);
+
+        // 7️⃣ 분석 결과 캐시에 저장
+        predictionCacheManager.putPrediction(bot, symbol, predictionDTO); // 캐시 저장
+
+        // 8️⃣ DB에도 결과 저장
+        predictionService.savePrediction(bot, predictionDTO); // DB 저장
     }
 }

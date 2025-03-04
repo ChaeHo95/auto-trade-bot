@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @Builder
-public class ChartAnalysisPredictionDTO {
+public class PredictionDTO {
     private Long id; // ✅ 차트 분석 결과 ID
     private String symbol; // ✅ 거래 심볼 (예: BTCUSDT)
     private LocalDateTime analysisTime; // ✅ 분석 수행 시각

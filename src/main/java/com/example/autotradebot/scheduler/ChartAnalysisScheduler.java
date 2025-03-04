@@ -1,7 +1,6 @@
-package com.example.autotradebot.scheduler.gpt;
+package com.example.autotradebot.scheduler;
 
-import com.example.autotradebot.service.analysis.MarketAnalysisService;
-import com.example.autotradebot.service.gpt.GPTChartAnalysisService;
+import com.example.autotradebot.service.chart.ChartAnalysisService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -10,19 +9,16 @@ import java.util.List;
 import java.util.Locale;
 
 @Component
-public class GPTChartAnalysisScheduler {
+public class ChartAnalysisScheduler {
 
-    private final GPTChartAnalysisService gptChartAnalysisService;
-    private final MarketAnalysisService marketAnalysisService;
+    private final ChartAnalysisService chartAnalysisService;
 
     @Value("symbols")
     private List<String> symbols;
 
     @Autowired
-    public GPTChartAnalysisScheduler(GPTChartAnalysisService gptChartAnalysisService,
-                                     MarketAnalysisService marketAnalysisService) {
-        this.gptChartAnalysisService = gptChartAnalysisService;
-        this.marketAnalysisService = marketAnalysisService;
+    public ChartAnalysisScheduler(ChartAnalysisService chartAnalysisService) {
+        this.chartAnalysisService = chartAnalysisService;
     }
 
     /**
@@ -38,7 +34,7 @@ public class GPTChartAnalysisScheduler {
         for (String market : markets) {
             // 1️⃣ 최근 차트 데이터 가져오기
             // 2️⃣ GPT 차트 분석 서비스 호출
-            gptChartAnalysisService.scheduledChartAnalysis(market.toUpperCase());
+            chartAnalysisService.scheduledChartAnalysis("GEMINI", market.toUpperCase());
         }
     }
 }
