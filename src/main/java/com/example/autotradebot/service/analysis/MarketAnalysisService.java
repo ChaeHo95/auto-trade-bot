@@ -22,14 +22,14 @@ public class MarketAnalysisService {
     /**
      * ✅ AI 분석용 데이터 개별적으로 가져오기 및 설정
      */
-    public MarketAnalysisDTO getMarketAnalysis(String symbol, String botType) {
+    public MarketAnalysisDTO getMarketAnalysis(String symbol, String botType, int limit) {
         // 1️⃣ 심볼 설정
         MarketAnalysisDTO.MarketAnalysisDTOBuilder analysisBuilder = MarketAnalysisDTO.builder()
                 .symbol(symbol);
 
         try {
             // 2️⃣ 최근 200개 캔들 데이터 가져오기 (BinanceKlineDTO → MarketAnalysisKlineDTO 변환)
-            List<MarketAnalysisKlineDTO> recentKlines = marketAnalysisMapper.getRecentKlines(symbol)
+            List<MarketAnalysisKlineDTO> recentKlines = marketAnalysisMapper.getRecentKlines(symbol, limit)
                     .stream()
                     .map(kline -> MarketAnalysisKlineDTO.builder()
                             .openTime(kline.getOpenTime())
@@ -48,7 +48,7 @@ public class MarketAnalysisService {
 
         try {
             // 3️⃣ 최근 100개 체결 거래 데이터 가져오기 (BinanceTradeDTO → MarketAnalysisTradeDTO 변환)
-            List<MarketAnalysisTradeDTO> recentTrades = marketAnalysisMapper.getRecentTrades(symbol)
+            List<MarketAnalysisTradeDTO> recentTrades = marketAnalysisMapper.getRecentTrades(symbol, limit)
                     .stream()
                     .map(trade -> MarketAnalysisTradeDTO.builder()
                             .price(trade.getPrice())
@@ -65,7 +65,7 @@ public class MarketAnalysisService {
 
         try {
             // 4️⃣ 최근 20개 펀딩 비율 데이터 가져오기 (BinanceFundingRateDTO → MarketAnalysisFundingRateDTO 변환)
-            List<MarketAnalysisFundingRateDTO> fundingRates = marketAnalysisMapper.getFundingRates(symbol)
+            List<MarketAnalysisFundingRateDTO> fundingRates = marketAnalysisMapper.getFundingRates(symbol, limit)
                     .stream()
                     .map(fundingRate -> MarketAnalysisFundingRateDTO.builder()
                             .fundingTime(fundingRate.getFundingTime())
@@ -90,7 +90,7 @@ public class MarketAnalysisService {
 
         try {
             // 6️⃣ 이동 평균 값 가져오기
-            BigDecimal movingAverage = marketAnalysisMapper.getMovingAverage(symbol);
+            BigDecimal movingAverage = marketAnalysisMapper.getMovingAverage(symbol, limit);
             analysisBuilder.movingAverage(movingAverage);
         } catch (Exception e) {
             System.err.println("movingAverage e = " + e);

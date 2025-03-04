@@ -63,16 +63,16 @@ public class ChartAnalysisService {
 
 
         // 1️⃣ 최근 차트 데이터 가져오기
-        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol, bot);
+        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol, bot, 200);
 
         // 2️⃣ 심볼별로 캐시된 분석 결과 가져오기
         PredictionDTO cachedPrediction = null;
 
         if (bot.equals("GEMINI")) {
-            cachedPrediction = geminiPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+            cachedPrediction = geminiPredictionCacheManager.getLatestPrediction(symbol);
         }
         if (bot.equals("CHATGPT")) {
-            cachedPrediction = chatGptPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+            cachedPrediction = chatGptPredictionCacheManager.getLatestPrediction(symbol);
         }
 
         if (isVolatilityHigh(marketData, bot, symbol)) {
@@ -122,12 +122,50 @@ public class ChartAnalysisService {
         String aiAnalysis = convertAiAnalysisToJson(marketAnalysisDTO.getCurrentPosition());
         String technicalIndicators = convertTechnicalIndicatorsToJson(marketAnalysisDTO.getMovingAverage(), marketAnalysisDTO.getRsiValue(), marketAnalysisDTO.getMacdValue());
 
-        String systemMessage = "You are a highly advanced crypto trading assistant specializing in analyzing market trends and price movements. " + "Your task is to evaluate the provided market data and generate a recommendation for the best trading position. " + "Please ensure to consider all the following factors when making your analysis:\n\n" + "- **Recent Price Movements (Candlestick Data):** Analyze recent price changes for understanding price direction.\n" + "- **RSI (Relative Strength Index):** Determine overbought or oversold conditions to gauge market strength.\n" + "- **MACD (Moving Average Convergence Divergence):** Identify momentum and potential reversals or continuations.\n" + "- **Moving Average (200-period):** Assess the overall market trend and compare it with short-term movements.\n" + "- **Funding Rate:** Understand market sentiment and liquidity to evaluate potential biases in market direction.\n" + "- **Recent Trading Volume:** Review recent trade volumes to assess the strength of price movements.\n\n" + "Based on your analysis, please provide the following recommendations in your response:\n\n" + "- **Trading Position:** Recommend whether to take a LONG, SHORT, EXIT, or WAIT position based on current market conditions.\n" + "- **Confidence Score:** Provide the level of confidence in your recommendation (percentage from 0 to 100).\n" + "- **Reasoning:** Explain the rationale behind your recommendation, referencing the market factors you considered.\n" + "- **Stop-Loss Price:** Suggest an appropriate stop-loss price to minimize potential losses.\n" + "- **Take-Profit Price:** Suggest a take-profit price based on the current market analysis.\n" + "- **Leverage Level:** Recommend a suitable leverage level based on the overall market conditions.\n\n" + "Please ensure that your recommendation is well-supported by the available data to make the most informed and accurate decision possible.";
+        String analysisTimeUnit = bot.equals("CHATGPT") ? "30" : "5";  // 여기서 "5"를 "30"으로 바꾸면 30분으로 설정 가능
 
+        String systemMessage = "You are a highly advanced crypto trading assistant specializing in analyzing market trends and price movements. "
+                + "Your task is to evaluate the provided market data and generate a recommendation for the best trading position. "
+                + "Please ensure to consider all the following factors when making your analysis:\n\n"
+                + "- **Recent Price Movements (Candlestick Data):** Analyze recent price changes for understanding price direction.\n"
+                + "- **RSI (Relative Strength Index):** Determine overbought or oversold conditions to gauge market strength.\n"
+                + "- **MACD (Moving Average Convergence Divergence):** Identify momentum and potential reversals or continuations.\n"
+                + "- **Moving Average (200-period):** Assess the overall market trend and compare it with short-term movements.\n"
+                + "- **Funding Rate:** Understand market sentiment and liquidity to evaluate potential biases in market direction.\n"
+                + "- **Recent Trading Volume:** Review recent trade volumes to assess the strength of price movements.\n\n"
+                + "Based on your analysis, please provide the following recommendations in your response:\n\n"
+                + "- **Trading Position:** Recommend whether to take a LONG, SHORT, EXIT, or WAIT position based on current market conditions.\n"
+                + "- **Confidence Score:** Provide the level of confidence in your recommendation (percentage from 0 to 100).\n"
+                + "- **Reasoning:** Explain the rationale behind your recommendation, referencing the market factors you considered.\n"
+                + "- **Stop-Loss Price:** Suggest an appropriate stop-loss price to minimize potential losses.\n"
+                + "- **Take-Profit Price:** Suggest a take-profit price based on the current market analysis.\n"
+                + "- **Leverage Level:** Recommend a suitable leverage level based on the overall market conditions.\n\n"
+                + "Please ensure that your recommendation is well-supported by the available data to make the most informed and accurate decision possible.";
 
-        // 3️⃣ 사용자 데이터 입력 (전체 데이터 JSON 포함)
-        String userMessage = String.format("Analyze the following market data and predict the best trading position:\n\n" + "### Trading Symbol: %s\n\n" + "### Market Data (JSON Format):\n%s\n\n" + "### AI Previous Analysis (from last prediction):\n%s\n\n" + "### Technical Indicators:\n%s\n\n" + "### Your Response Format (JSON):\n" + "{\n" + "  \"symbol\": \"%s\",\n" + "  \"position\": \"LONG | SHORT | EXIT | WAIT\",\n" + "  \"confidence\": percentage (0-100),\n" + "  \"reason\": \"Explain why this position is recommended\",\n" + "  \"stopLoss\": \"Recommended stop-loss price\",\n" + "  \"takeProfit\": \"Recommended take-profit price\",\n" + "  \"leverage\": \"Suggested leverage level (if applicable)\"\n" + "}\n", marketAnalysisDTO.getSymbol(), klineSummary, tradeSummary, fundingSummary, aiAnalysis, technicalIndicators, marketAnalysisDTO.getSymbol());
-
+        String userMessage = String.format("Analyze the following market data and predict the best trading position:\n\n"
+                        + "### Trading Symbol: %s\n\n"
+                        + "### Market Data (JSON Format):\n%s\n\n"
+                        + "### AI Previous Analysis (from last prediction):\n%s\n\n"
+                        + "### Technical Indicators:\n%s\n\n"
+                        + "### Timeframes for the data:\n"
+                        + " - **Kline Summary** is based on 1-minute candlestick data.\n"
+                        + " - **Trade Summary** and **Funding Summary** are based on 1-second intervals.\n\n"
+                        + "### Important Details:\n"
+                        + " - **MACD, RSI, and Moving Average** are calculated based on the 1-minute candlestick data.\n\n"
+                        + "### Analysis Time Unit:\n"
+                        + " - The analysis is based on the data received at **[current timestamp]**, with 1-minute candlesticks for technical indicators.\n"
+                        + " - The analysis interval is **every %s minutes**.\n\n"
+                        + "### Your Response Format (JSON):\n"
+                        + "{\n"
+                        + "  \"symbol\": \"%s\",\n"
+                        + "  \"position\": \"LONG | SHORT | EXIT | WAIT\",\n"
+                        + "  \"confidence\": percentage (0-100),\n"
+                        + "  \"reason\": \"Explain why this position is recommended\",\n"
+                        + "  \"stopLoss\": \"Recommended stop-loss price\",\n"
+                        + "  \"takeProfit\": \"Recommended take-profit price\",\n"
+                        + "  \"leverage\": \"Suggested leverage level (if applicable)\"\n"
+                        + "}\n",
+                marketAnalysisDTO.getSymbol(), klineSummary, tradeSummary, fundingSummary, aiAnalysis, technicalIndicators, marketAnalysisDTO.getSymbol(), analysisTimeUnit);
 
         // 3️⃣ OpenAI API 호출
         String response = null;
