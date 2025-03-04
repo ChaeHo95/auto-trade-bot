@@ -1,0 +1,86 @@
+plugins {
+    id("java")
+    id("org.springframework.boot") version "3.4.3"
+    id("io.spring.dependency-management") version "1.1.7"
+}
+
+group = "com.example"
+version = "0.0.1"
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom(annotationProcessor)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // ✅ Spring Boot 기본 스타터 패키지
+    implementation("org.springframework.boot:spring-boot-starter-web") // 웹 애플리케이션 개발용
+    implementation("org.springframework.boot:spring-boot-starter-security") // Spring Security (인증 및 인가)
+    implementation("org.springframework.boot:spring-boot-starter-actuator") // 애플리케이션 모니터링 (Actuator)
+
+    // ✅ 환경 변수 관리
+    implementation("io.github.cdimascio:dotenv-java:3.0.0") // `.env` 파일을 통해 환경 변수 로드
+
+    // ✅ MyBatis (SQL 매퍼)
+    implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4")
+
+    // ✅ MySQL 드라이버 (정확한 최신 버전 사용)
+    runtimeOnly("mysql:mysql-connector-java:8.0.33")
+
+    // ✅ Swagger (SpringDoc OpenAPI) - API 문서 자동 생성
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
+
+    // ✅ HttpClient 5 (REST API 호출)
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.4.2")
+
+    // ✅ Gson (JSON 직렬화/역직렬화)
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // ✅ Hibernate Validator & Jakarta Validation (Bean Validation 지원)
+    implementation("org.hibernate.validator:hibernate-validator:8.0.1.Final") // Hibernate Validator (Java Bean 검증)
+    implementation("jakarta.validation:jakarta.validation-api:3.0.2") // Jakarta Validation API (검증 인터페이스)
+
+    // ✅ Lombok (코드 간소화 - Getter, Setter, Builder 자동 생성)
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
+
+    // ✅ 개발 환경 지원
+    developmentOnly("org.springframework.boot:spring-boot-devtools") // 개발 도중 자동 재시작 지원
+
+    // ✅ 테스트 관련 의존성
+    testImplementation("org.springframework.boot:spring-boot-starter-test") // JUnit 및 Mocking 지원
+    testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4") // MyBatis 테스트 지원
+    testImplementation("org.springframework.security:spring-security-test") // Security 관련 테스트 지원
+
+    // ✅ChatGpt 의존성
+    implementation("org.springframework.ai:spring-ai-openai-spring-boot-starter:1.0.0-M6")
+
+    // ✅ Binance WebSocket을 위한 추가 의존성
+    implementation("org.springframework.boot:spring-boot-starter-websocket") // Spring Boot WebSocket 지원
+    implementation("com.fasterxml.jackson.core:jackson-databind") // JSON 파싱
+    implementation("org.java-websocket:Java-WebSocket:1.5.3") // WebSocket 클라이언트 라이브러리
+
+    // ✅ Protocol Buffer (protobuf-java) 의존성 추가 (Spring AI Gemini 사용에 필요)
+    implementation("com.google.protobuf:protobuf-java:4.29.3")
+
+    // 📌 OkHttp (API 호출)
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+
+
+}
+
+
+tasks.test {
+    useJUnitPlatform()
+}

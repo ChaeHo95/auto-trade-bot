@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.autotradebot.mapper.analysis.MarketAnalysisMapper">
+
+    <!-- ✅ 최근 200개의 캔들 데이터 -->
+    <select id="getRecentKlines" resultType="com.example.autotradebot.dto.binance.BinanceKlineDTO">
+        SELECT open_time,
+               close_time,
+               open_price,
+               close_price,
+               high_price,
+               low_price,
+               volume,
+               trade_count
+        FROM binance_kline
+        WHERE symbol = #{symbol}
+        ORDER BY open_time DESC LIMIT 200;
+    </select>
+
+    <!-- ✅ 최근 100개의 체결 거래 데이터 -->
+    <select id="getRecentTrades" resultType="com.example.autotradebot.dto.binance.BinanceTradeDTO">
+        SELECT trade_time, price, quantity, buyer_maker
+        FROM binance_trade
+        WHERE symbol = #{symbol}
+        ORDER BY trade_time DESC LIMIT 100;
+    </select>
+
+    <!-- ✅ 최근 20개의 펀딩 비율 데이터 -->
+    <select id="getFundingRates" resultType="com.example.autotradebot.dto.binance.BinanceFundingRateDTO">
+        SELECT funding_time, funding_rate, mark_price, symbol
+        FROM binance_funding_rate
+        WHERE symbol = #{symbol}
+        ORDER BY funding_time DESC LIMIT 20;
+    </select>
+
+    <!-- ✅ AI 분석 예측 정보 -->
+    <select id="getChartAnalysis" resultType="com.example.autotradebot.dto.analysis.ChartAnalysisPredictionDTO">
+        SELECT symbol,
+               IFNULL(recommended_position, 'WAIT') AS recommended_position,
+               IFNULL(confidence_score, 0.00)       AS confidence_score,
+               IFNULL(moving_average, 0.0000000000) AS moving_average,
+               IFNULL(rsi_value, 50.00)             AS rsi_value,
+               IFNULL(macd_value, 0.0000000000)     AS macd_value,
+               IFNULL(volatility, 0.0000000000)     AS volatility,
+               IFNULL(funding_rate, 0.0000000000)   AS funding_rate,
+               IFNULL(trade_volume, 0.0000000000)   AS trade_volume,
+               IFNULL(analysis_time, NOW())         AS analysis_time
+        FROM chart_analysis_predictions
+        WHERE symbol = #{symbol}
+        ORDER BY analysis_time DESC LIMIT 1;
+    </select>
+
+    <!-- ✅ 이동평균선 (최근 200개 캔들 기준) -->
+    <select id="getMovingAverage" resultType="java.math.BigDecimal">
+        SELECT IFNULL(AVG(close_price), 0.0000000000)
+        FROM (SELECT close_price
+              FROM binance_kline
+              WHERE symbol = #{symbol}
+              ORDER BY open_time DESC LIMIT 200) subquery
+        HAVING COUNT(*) = 200;
+    </select>
+
+    <!-- ✅ RSI 값 -->
+    <select id="getRSIValue" resultType="java.math.BigDecimal">
+        WITH rsi_data AS (SELECT open_time,
+                                 close_price,
+                                 LAG(close_price, 1) OVER (ORDER BY open_time) AS prev_close_price
+                          FROM binance_kline
+                          WHERE symbol = #{symbol}
+                          ORDER BY open_time DESC
+            LIMIT 14
+            )
+        SELECT 100 - (100 / (1 + (AVG(upward_movement) / NULLIF(AVG(downward_movement), 0)))) AS RSI
+        FROM (SELECT open_time,
+                     close_price,
+                     prev_close_price,
+                     CASE
+                         WHEN close_price <![CDATA[ > ]]> prev_close_price THEN close_price - prev_close_price
+                         ELSE 0
+                         END AS upward_movement,
+                     CASE
+                         WHEN close_price <![CDATA[ < ]]> prev_close_price THEN prev_close_price - close_price
+                         ELSE 0
+                         END AS downward_movement
+              FROM rsi_data) rsi_calc;
+    </select>
+
+    <!-- ✅ MACD 값 -->
+    <select id="getMACDValue" resultType="java.math.BigDecimal">
+        WITH ema_calc AS (SELECT open_time,
+                                 -- EMA 공식 적용
+                                 (close_price * (2.0 / (12 + 1))) + (LAG(ema_12, 1) OVER (PARTITION BY symbol ORDER BY open_time) * (1 - (2.0 / (12 + 1)))) AS ema_12,
+                                 (close_price * (2.0 / (26 + 1))) + (LAG(ema_26, 1) OVER (PARTITION BY symbol ORDER BY open_time) * (1 - (2.0 / (26 + 1)))) AS ema_26
+                          FROM (SELECT symbol,
+                                       open_time,
+                                       close_price,
+                                       -- 초기 EMA 값을 단순 이동평균(SMA)로 설정
+                                       AVG(close_price) OVER (PARTITION BY symbol ORDER BY open_time ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS ema_12, AVG(close_price) OVER (PARTITION BY symbol ORDER BY open_time ROWS BETWEEN 25 PRECEDING AND CURRENT ROW) AS ema_26
+                                FROM binance_kline
+                                WHERE symbol = #{symbol}) base_data)
+        SELECT (ema_12 - ema_26) AS MACD
+        FROM ema_calc
+        ORDER BY open_time DESC LIMIT 1;
+    </select>
+
+</mapper>
+

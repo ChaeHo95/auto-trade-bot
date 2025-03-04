@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.autotradebot.mapper.binance.BinanceFundingRateMapper">
+
+    <!-- ✅ Funding Rate 데이터 저장 -->
+    <insert id="insertFundingRate" parameterType="com.example.autotradebot.dto.binance.BinanceFundingRateDTO">
+        INSERT INTO binance_funding_rate (symbol, funding_rate, funding_time, mark_price, created_at)
+        VALUES (#{symbol}, #{fundingRate}, #{fundingTime}, #{markPrice}, NOW()) ON DUPLICATE KEY
+        UPDATE
+            funding_rate =
+        VALUES (funding_rate), mark_price =
+        VALUES (mark_price), created_at = NOW();
+    </insert>
+
+    <!-- ✅ 특정 심볼의 최신 Funding Rate 조회 -->
+    <select id="getLatestFundingRate" resultType="com.example.autotradebot.dto.binance.BinanceFundingRateDTO">
+        SELECT symbol, funding_rate, funding_time, mark_price, created_at
+        FROM binance_funding_rate
+        WHERE symbol = #{symbol}
+        ORDER BY funding_time DESC LIMIT 1;
+    </select>
+
+    <!-- ✅ 특정 심볼의 특정 기간 Funding Rate 조회 -->
+    <select id="getFundingRatesByTimeRange" resultType="com.example.autotradebot.dto.binance.BinanceFundingRateDTO">
+        SELECT symbol, funding_rate, funding_time, mark_price, created_at
+        FROM binance_funding_rate
+        WHERE symbol = #{symbol}
+          AND funding_time BETWEEN #{startTime} AND #{endTime}
+        ORDER BY funding_time ASC;
+    </select>
+
+    <!-- ✅ 최신 Funding Rate 데이터 목록 조회 (최근 100개) -->
+    <select id="getRecentFundingRates" resultType="com.example.autotradebot.dto.binance.BinanceFundingRateDTO">
+        SELECT symbol, funding_rate, funding_time, mark_price, created_at
+        FROM binance_funding_rate
+        ORDER BY funding_time DESC LIMIT 100;
+    </select>
+
+    <select id="getFundingRatesInRange" resultType="com.example.autotradebot.dto.binance.BinanceFundingRateDTO">
+        SELECT *
+        FROM binance_funding_rate
+        WHERE symbol = #{symbol}
+          AND funding_time BETWEEN #{startTime} AND #{endTime}
+        ORDER BY funding_time ASC
+    </select>
+
+</mapper>
