@@ -67,7 +67,7 @@ public class BinanceHistoryService {
         String pair = market.toUpperCase();
         String contractType = "PERPETUAL";
 
-        String url = String.format("/fapi/v1/continuousKlines?pair=%s&contractType=%s&interval=%s&startTime=%d&limit=1500",
+        String url = String.format("/continuousKlines?pair=%s&contractType=%s&interval=%s&startTime=%d&limit=1500",
                 pair, contractType, interval, startTime);
 
         fetchAndStoreKlineData(url, market).block(); // 동기 처리
@@ -79,7 +79,7 @@ public class BinanceHistoryService {
     public void saveTicker(String market) {
         logger.info("📡 {} Ticker 데이터 요청 시작", market);
 
-        String url = String.format("/fapi/v1/ticker/24hr?symbol=%s", market.toUpperCase());
+        String url = String.format("/ticker/24hr?symbol=%s", market.toUpperCase());
 
         webClient.get()
                 .uri(url)
@@ -114,7 +114,7 @@ public class BinanceHistoryService {
     public void saveHistoricalTrades(String market, int limit) {
         logger.info("📡 {} Trade 데이터 요청 시작 (limit: {})", market, limit);
 
-        String url = String.format("/fapi/v1/trades?symbol=%s&limit=%d", market.toUpperCase(), limit);
+        String url = String.format("/trades?symbol=%s&limit=%d", market.toUpperCase(), limit);
 
         webClient.get()
                 .uri(url)
@@ -149,7 +149,7 @@ public class BinanceHistoryService {
     public void saveFundingRates(String market) {
         logger.info("📡 {} Funding Rate 데이터 요청 시작", market);
 
-        String url = String.format("/fapi/v1/fundingRate?symbol=%s&limit=1000", market.toUpperCase());
+        String url = String.format("/fundingRate?symbol=%s&limit=1000", market.toUpperCase());
 
         webClient.get()
                 .uri(url)
@@ -182,7 +182,7 @@ public class BinanceHistoryService {
     public void saveAggTrades(String market, int limit) {
         logger.info("📡 {} Aggregate Trade 데이터 요청 시작 (limit: {})", market, limit);
 
-        String url = String.format("/fapi/v1/aggTrades?symbol=%s&limit=%d", market.toUpperCase(), limit);
+        String url = String.format("/aggTrades?symbol=%s&limit=%d", market.toUpperCase(), limit);
 
         webClient.get()
                 .uri(url)
