@@ -44,6 +44,14 @@
         ORDER BY analysis_time DESC LIMIT 1;
     </select>
 
+    <select id="getChartAnalysis200" resultType="com.example.autotradebot.dto.analysis.PredictionDTO">
+        SELECT *
+        FROM chart_analysis_predictions
+        WHERE symbol = #{symbol}
+          AND bot_type = #{botType}
+        ORDER BY analysis_time DESC LIMIT 200;
+    </select>
+
     <!-- ✅ 이동평균선 (최근 200개 캔들 기준) -->
     <select id="getMovingAverage" resultType="java.math.BigDecimal">
         SELECT IFNULL(AVG(close_price), 0.0000000000)

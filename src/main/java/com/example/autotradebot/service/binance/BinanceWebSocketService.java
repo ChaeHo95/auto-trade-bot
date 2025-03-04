@@ -65,7 +65,7 @@ public class BinanceWebSocketService {
 
             // ✅ 구독할 심볼 리스트 설정
             List<String> markets = symbols.stream()
-                    .map(v -> v.toLowerCase(Locale.ROOT) + "usdt")
+                    .map(v -> v.toLowerCase(Locale.ROOT))
                     .toList(); // 필요한 심볼 추가 가능
 
             // ✅ WebSocket 시작 전 최신 데이터 확인 & 보충

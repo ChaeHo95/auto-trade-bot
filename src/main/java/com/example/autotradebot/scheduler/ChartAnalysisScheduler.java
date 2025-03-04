@@ -27,7 +27,7 @@ public class ChartAnalysisScheduler {
 //    @Scheduled(fixedRate = 60000) // 1분마다 실행 (60,000ms = 1분)
     public void scheduledChartAnalysis() {
         List<String> markets = symbols.stream()
-                .map(v -> v.toLowerCase(Locale.ROOT) + "usdt")
+                .map(v -> v.toLowerCase(Locale.ROOT))
                 .toList(); // 필요한 심볼 추가 가능
 
         // 각 심볼에 대해 주기적으로 분석을 수행
