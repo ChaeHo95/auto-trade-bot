@@ -2,6 +2,9 @@ package com.example.autotradebot.service.analysis;
 
 
 import com.example.autotradebot.dto.analysis.*;
+import com.example.autotradebot.dto.binance.BinanceLiquidationOrderDTO;
+import com.example.autotradebot.dto.binance.BinanceOrderBookEntryDTO;
+import com.example.autotradebot.dto.binance.BinancePartialBookDepthDTO;
 import com.example.autotradebot.mapper.analysis.AiAnalysisFinalHistoryMapper;
 import com.example.autotradebot.mapper.analysis.MarketAnalysisMapper;
 import com.example.autotradebot.service.gemini.GeminiService;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -99,6 +103,28 @@ public class AiAnalysisFinalHistoryService {
                         .mark_price(fundingRate.getMarkPrice())
                         .build())
                 .collect(Collectors.toList());
+
+
+        List<BinanceLiquidationOrderDTO> liquidationOrders = marketAnalysisMapper.getLiquidationOrders(symbol, 1000);
+
+        List<BinancePartialBookDepthDTO> partialBookDepth = marketAnalysisMapper.getPartialBookDepth(symbol, 1000);
+
+        for (BinancePartialBookDepthDTO depth : partialBookDepth) {
+            List<BinanceOrderBookEntryDTO> orderBookEntries = marketAnalysisMapper.getOrderBookEntriesBySymbolAndEventTime(symbol, depth.getEventTime());
+            List<BinancePartialBookDepthDTO.OrderBookEntry> bids = new ArrayList();
+            List<BinancePartialBookDepthDTO.OrderBookEntry> asks = new ArrayList();
+            for (BinanceOrderBookEntryDTO entry : orderBookEntries) {
+                BinancePartialBookDepthDTO.OrderBookEntry orderBookEntry = new BinancePartialBookDepthDTO.OrderBookEntry(entry.getPrice(), entry.getQuantity());
+                if ("BID".equals(entry.getOrderType())) {
+
+                    bids.add(orderBookEntry);
+                } else {
+                    asks.add(orderBookEntry);
+                }
+            }
+            depth.setBids(bids);
+            depth.setAsks(asks);
+        }
 
         BigDecimal movingAverage = marketAnalysisMapper.getMovingAverage(symbol, 1000);
         BigDecimal rsiValue = marketAnalysisMapper.getRSIValue(symbol);
@@ -187,6 +213,8 @@ public class AiAnalysisFinalHistoryService {
                 "The market is currently in a sideways trend, and further confirmation is needed before making a decision." // 예시 reason
         );
 
+//        liquidationOrders, partialBookDepth
+        
         String response = geminiService.callGeminiAiApi(systemMessage, userMessage);
 
         JsonReader reader = new JsonReader(new StringReader(response));

@@ -60,6 +60,8 @@ public class ChartAnalysisService {
      * ✅ 1분마다 호출되며, 심볼별로 15분이 지난 데이터만 다시 호출
      */
     public void scheduledChartAnalysis(String symbol, String bot) {
+        System.out.println("symbol = " + symbol);
+        System.out.println("bot = " + bot);
         if (!bot.equals("GEMINI") && !bot.equals("CHATGPT")) {
             return;
         }
@@ -410,10 +412,10 @@ public class ChartAnalysisService {
         // 1️⃣ 캐시된 예측 결과 가져오기
         PredictionDTO cachedPrediction = null;
         if (bot.equals("GEMINI")) {
-            cachedPrediction = geminiPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+            cachedPrediction = geminiPredictionCacheManager.getLatestPrediction(symbol);
         }
         if (bot.equals("CHATGPT")) {
-            cachedPrediction = chatGptPredictionCacheManager.getLatestPrediction(symbol); // 캐시 저장
+            cachedPrediction = chatGptPredictionCacheManager.getLatestPrediction(symbol);
         }
         // 캐시된 데이터가 없거나 변동성을 계산할 수 없으면 false로 처리
         if (cachedPrediction == null) {
