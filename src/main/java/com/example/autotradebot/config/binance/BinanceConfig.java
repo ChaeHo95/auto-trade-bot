@@ -74,12 +74,12 @@ public class BinanceConfig {
         // Binance Futures의 스트림 형식에 맞게 변환
         String streams = markets.stream()
                 .flatMap(market -> List.of(
-                        market + "@aggTrade",      // 선물 거래 데이터
-                        market + "@markPrice",     // 선물 시장 가격 (펀딩비 포함)
-                        market + "@kline_1m",      // 1분봉 캔들 데이터
-                        market + "@ticker",        // 24시간 티커 데이터
-                        market + "@forceOrder",    // 강제 청산 정보
-                        market + "@liquidationOrder" // 강제 청산 주문 정보
+                        market + "@aggTrade",      // ✅ 선물 거래 데이터
+                        market + "@markPrice",     // ✅ 선물 시장 가격 (펀딩비 포함)
+                        market + "@kline_1m",      // ✅ 1분봉 캔들 데이터
+                        market + "@ticker",        // ✅ 24시간 티커 데이터
+                        market + "@forceOrder",    // ✅ 강제 청산 정보
+                        market + "@depth10@100ms"   // ✅ PARTIAL BOOK DEPTH (20개 레벨, 100ms 간격)
                 ).stream())
                 .collect(Collectors.joining("/"));
 

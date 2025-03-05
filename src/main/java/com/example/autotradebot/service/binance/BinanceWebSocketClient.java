@@ -23,6 +23,10 @@ public class BinanceWebSocketClient extends WebSocketClient {
     private final BinanceTradeService tradeService;
     private final BinanceFundingRateService fundingRateService;
     private final BinanceAggTradeService aggTradeService;
+    private final BinanceLiquidationOrderService liquidationOrderService;
+    private final BinancePartialBookDepthService partialBookDepthService;
+
+
     private final ObjectMapper objectMapper;
 
     // ✅ 재연결 관련 변수
@@ -43,6 +47,8 @@ public class BinanceWebSocketClient extends WebSocketClient {
                                   BinanceTradeService tradeService,
                                   BinanceFundingRateService fundingRateService,
                                   BinanceAggTradeService aggTradeService,
+                                  BinanceLiquidationOrderService liquidationOrderService,
+                                  BinancePartialBookDepthService partialBookDepthService,
                                   ObjectMapper objectMapper) {
         super(serverUri);
         this.klineService = klineService;
@@ -51,6 +57,8 @@ public class BinanceWebSocketClient extends WebSocketClient {
         this.fundingRateService = fundingRateService;
         this.aggTradeService = aggTradeService;
         this.objectMapper = objectMapper;
+        this.liquidationOrderService = liquidationOrderService;
+        this.partialBookDepthService = partialBookDepthService;
     }
 
     /**
@@ -116,11 +124,43 @@ public class BinanceWebSocketClient extends WebSocketClient {
                 handleAggTradeMessage(data);
             } else if (stream.contains("@markPrice")) {
                 handleMarkPriceMessage(data);
+            } else if (stream.contains("@forceOrder")) {
+                handleLiquidationOrderMessage(data);
+            } else if (stream.contains("@depth")) {
+                handlePartialBookDepthMessage(data);
             } else {
                 logger.warn("⚠️ 알 수 없는 데이터 수신: {}", stream);
             }
         } catch (Exception e) {
             logger.error("❌ WebSocket 메시지 처리 오류: ", e);
+        }
+    }
+
+    /**
+     * ✅ 강제 청산 정보 저장 (Liquidation Order Streams)
+     * 해당 메서드는 @forceOrder 스트림을 통해 수신된 강제 청산 데이터를 저장합니다.
+     */
+    private void handleLiquidationOrderMessage(JsonNode data) {
+        try {
+            BinanceLiquidationOrderDTO liquidationOrder = objectMapper.treeToValue(data, BinanceLiquidationOrderDTO.class);
+            liquidationOrderService.saveLiquidationOrder(liquidationOrder);
+            logger.info("🔥 강제 청산 정보 저장됨: {}", liquidationOrder);
+        } catch (Exception e) {
+            logger.error("❌ 강제 청산 정보 저장 오류: ", e);
+        }
+    }
+
+    /**
+     * ✅ 호가 데이터 저장 (Partial Book Depth Streams)
+     * 해당 메서드는 @depth 스트림을 통해 수신된 호가 데이터를 저장합니다.
+     */
+    private void handlePartialBookDepthMessage(JsonNode data) {
+        try {
+            BinancePartialBookDepthDTO partialBookDepth = objectMapper.treeToValue(data, BinancePartialBookDepthDTO.class);
+            partialBookDepthService.savePartialBookDepth(partialBookDepth);
+            logger.info("📊 호가 데이터 저장됨: {}", partialBookDepth);
+        } catch (Exception e) {
+            logger.error("❌ 호가 데이터 저장 오류: ", e);
         }
     }
 

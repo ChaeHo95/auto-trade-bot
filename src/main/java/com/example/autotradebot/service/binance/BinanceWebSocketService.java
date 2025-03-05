@@ -25,6 +25,9 @@ public class BinanceWebSocketService {
     private BinanceHistoryService binanceHistoryService;
     private BinanceAggTradeService binanceAggTradeService;
     private BinanceFundingRateService binanceFundingRateService;
+    private final BinanceLiquidationOrderService liquidationOrderService;
+    private final BinancePartialBookDepthService partialBookDepthService;
+
     private ObjectMapper objectMapper;
     private BinanceWebSocketClient webSocketClient;
 
@@ -43,6 +46,8 @@ public class BinanceWebSocketService {
             BinanceHistoryService binanceHistoryService,
             BinanceAggTradeService binanceAggTradeService,
             BinanceFundingRateService binanceFundingRateService,
+            BinanceLiquidationOrderService liquidationOrderService,
+            BinancePartialBookDepthService partialBookDepthService,
             ObjectMapper objectMapper
     ) {
         this.binanceConfig = binanceConfig;
@@ -52,6 +57,8 @@ public class BinanceWebSocketService {
         this.binanceHistoryService = binanceHistoryService;
         this.binanceAggTradeService = binanceAggTradeService;
         this.binanceFundingRateService = binanceFundingRateService;
+        this.liquidationOrderService = liquidationOrderService;
+        this.partialBookDepthService = partialBookDepthService;
         this.objectMapper = objectMapper;
     }
 
@@ -61,7 +68,7 @@ public class BinanceWebSocketService {
             logger.info("⚠ WebSocket 실행이 비활성화됨.");
             return; // 실행하지 않음
         }
-        
+
         try {
             // ✅ 구독할 심볼 리스트 설정
             List<String> markets = symbols.stream()
@@ -82,7 +89,7 @@ public class BinanceWebSocketService {
             webSocketClient = new BinanceWebSocketClient(
                     webSocketUri, binanceKlineService, binanceTickerService,
                     binanceTradeService, binanceFundingRateService, binanceAggTradeService,
-                    objectMapper
+                    liquidationOrderService, partialBookDepthService, objectMapper
             );
             webSocketClient.connect();
 
