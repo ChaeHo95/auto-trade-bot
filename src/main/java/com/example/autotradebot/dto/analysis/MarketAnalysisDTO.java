@@ -1,5 +1,7 @@
 package com.example.autotradebot.dto.analysis;
 
+import com.example.autotradebot.dto.binance.BinanceLiquidationOrderDTO;
+import com.example.autotradebot.dto.binance.BinancePartialBookDepthDTO;
 import lombok.Builder;
 import lombok.Data;
 
@@ -17,6 +19,8 @@ public class MarketAnalysisDTO {
     private List<MarketAnalysisKlineDTO> recentKlines;  // ✅ 최근 200개 캔들 데이터
     private List<MarketAnalysisTradeDTO> recentTrades;  // ✅ 최근 100개 체결 거래 데이터
     private List<MarketAnalysisFundingRateDTO> fundingRates; // ✅ 최근 20개 펀딩 비율 데이터
+    private List<BinanceLiquidationOrderDTO> liquidationOrders; // ✅ 최근 청산 주문 데이터
+    private List<BinancePartialBookDepthDTO> partialBookDepth; // ✅ 최근 부분 주문서 데이터
     private PredictionDTO currentPosition; // ✅ AI 분석용 차트 데이터 봇
 
     private BigDecimal movingAverage; // ✅ 이동평균선 (200개 캔들 기준)

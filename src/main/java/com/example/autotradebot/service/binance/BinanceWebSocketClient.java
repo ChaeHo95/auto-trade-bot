@@ -144,7 +144,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
         try {
             BinanceLiquidationOrderDTO liquidationOrder = objectMapper.treeToValue(data, BinanceLiquidationOrderDTO.class);
             liquidationOrderService.saveLiquidationOrder(liquidationOrder);
-            logger.info("🔥 강제 청산 정보 저장됨: {}", liquidationOrder);
+            logger.debug("🔥 강제 청산 정보 저장됨: {}", liquidationOrder);
         } catch (Exception e) {
             logger.error("❌ 강제 청산 정보 저장 오류: ", e);
         }
@@ -158,7 +158,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
         try {
             BinancePartialBookDepthDTO partialBookDepth = objectMapper.treeToValue(data, BinancePartialBookDepthDTO.class);
             partialBookDepthService.savePartialBookDepth(partialBookDepth);
-            logger.info("📊 호가 데이터 저장됨: {}", partialBookDepth);
+            logger.debug("📊 호가 데이터 저장됨: {}", partialBookDepth);
         } catch (Exception e) {
             logger.error("❌ 호가 데이터 저장 오류: ", e);
         }

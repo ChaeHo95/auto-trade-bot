@@ -43,13 +43,23 @@ public class EnvConfig {
     }
 
     @Bean
-    public String getGeminiApiKey() {
-        return getEnvVariable("GEMINI_API_KEY");
+    public String getGeminiProjectId() {
+        return getEnvVariable("GEMINI_PROJECT_ID");
     }
 
     @Bean
-    public String getGeminiApiEndpoint() {
-        return getEnvVariable("GEMINI_API_ENDPOINT");
+    public String getGeminiRegion() {
+        return getEnvVariable("GEMINI_REGION");
+    }
+
+    @Bean
+    public String getGeminiModelId() {
+        return getEnvVariable("GEMINI_MODEL_ID");
+    }
+
+    @Bean
+    public String getGeminiCredentials() {
+        return getEnvVariable("GOOGLE_APPLICATION_CREDENTIALS");
     }
 
     @Bean
@@ -83,12 +93,7 @@ public class EnvConfig {
             logger.error("❌ {} 환경 변수가 설정되지 않았습니다!", key);
             return null;
         } else {
-            // 보안 유지가 필요한 값은 `****` 처리
-            if (key.contains("PASSWORD") || key.contains("KEY")) {
-                logger.info("✅ {} 로드 성공: ****", key);
-            } else {
-                logger.info("✅ {} 로드 성공: {}", key, value);
-            }
+            logger.info("✅ {} 로드 성공: {}", key);
             return value;
         }
     }

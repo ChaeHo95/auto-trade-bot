@@ -29,7 +29,7 @@ public class GptService {
         try {
             // Create request body
             JsonObject requestBodyJson = new JsonObject();
-            requestBodyJson.addProperty("model", "gpt-4o");
+            requestBodyJson.addProperty("model", "chatgpt-4o-latest");
 
             JsonArray messages = new JsonArray();
             JsonObject systemMessageJson = new JsonObject();
@@ -57,7 +57,6 @@ public class GptService {
                     .block();
 
             if (response != null) {
-                logger.info("OpenAI response: {}", response);
 
                 // Parse the message content from the response
                 String content = null;
@@ -67,8 +66,6 @@ public class GptService {
                 }
 
                 if (content != null) {
-                    logger.info("Received content: {}", content);
-
                     String cleanedResponseText = content.replace("```json", "").replace("```", "").trim();
 
                     int jsonStart = cleanedResponseText.indexOf("{");
@@ -77,7 +74,7 @@ public class GptService {
                     if (jsonStart == -1 || jsonEnd == -1) {
                         throw new IllegalStateException("AI 응답에서 JSON 데이터를 찾을 수 없습니다.");
                     }
-                    
+
                     return cleanedResponseText;
                 } else {
                     logger.error("No valid content found in the OpenAI response.");

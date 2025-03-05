@@ -1,13 +1,12 @@
 package com.example.autotradebot.mapper.analysis;
 
 import com.example.autotradebot.dto.analysis.PredictionDTO;
-import com.example.autotradebot.dto.binance.BinanceFundingRateDTO;
-import com.example.autotradebot.dto.binance.BinanceKlineDTO;
-import com.example.autotradebot.dto.binance.BinanceTradeDTO;
+import com.example.autotradebot.dto.binance.*;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 
 @Mapper
@@ -35,4 +34,15 @@ public interface MarketAnalysisMapper {
 
     // ✅ MACD 값 조회 (200개 캔들 기준)
     BigDecimal getMACDValue(@Param("symbol") String symbol);
+
+    // ✅ 최근 청산 주문 데이터 조회
+    List<BinanceLiquidationOrderDTO> getLiquidationOrders(@Param("symbol") String symbol, @Param("limit") int limit);
+
+    // ✅ 최근 부분 주문서 데이터 조회
+    List<BinancePartialBookDepthDTO> getPartialBookDepth(@Param("symbol") String symbol, @Param("limit") int limit);
+
+    // ✅ 심볼과 event_time을 기준으로 binance_order_book_entries 데이터 조회
+    List<BinanceOrderBookEntryDTO> getOrderBookEntriesBySymbolAndEventTime(
+            @Param("symbol") String symbol,
+            @Param("eventTime") BigInteger eventTime);
 }

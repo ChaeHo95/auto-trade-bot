@@ -105,5 +105,54 @@
         ORDER BY open_time DESC LIMIT 1;
     </select>
 
+    <!-- ✅ 최근 청산 주문 데이터 조회 -->
+    <select id="getLiquidationOrders" resultType="com.example.autotradebot.dto.binance.BinanceLiquidationOrderDTO">
+        SELECT event_type,
+               event_time,
+               symbol,
+               side,
+               order_type,
+               time_in_force,
+               original_quantity,
+               price,
+               average_price,
+               order_status,
+               last_filled_quantity,
+               total_filled_quantity,
+               trade_time
+        FROM binance_liquidation_orders
+        WHERE symbol = #{symbol}
+        ORDER BY event_time DESC LIMIT #{limit};
+    </select>
+
+    <!-- ✅ 최근 부분 주문서 데이터(Depth)만 조회 -->
+    <select id="getPartialBookDepth"
+            resultType="com.example.autotradebot.dto.binance.BinancePartialBookDepthDTO">
+        SELECT b.event_type,
+               b.event_time,
+               b.transaction_time,
+               b.symbol,
+               b.first_update_id,
+               b.final_update_id,
+               b.previous_update_id
+        FROM binance_partial_book_depth b
+        WHERE b.symbol = #{symbol}
+        ORDER BY b.event_time DESC
+            LIMIT #{limit};
+    </select>
+
+    <!-- ✅ 심볼과 event_time을 기준으로 binance_order_book_entries 데이터 조회 -->
+    <select id="getOrderBookEntriesBySymbolAndEventTime"
+            resultType="com.example.autotradebot.dto.binance.BinanceOrderBookEntryDTO">
+        SELECT boe.type AS order_type,
+               boe.price,
+               boe.quantity
+        FROM binance_order_book_entries boe
+                 JOIN binance_partial_book_depth b
+                      ON boe.transaction_time = b.transaction_time
+        WHERE b.symbol = #{symbol}
+          AND b.event_time = #{eventTime}
+        ORDER BY boe.transaction_time DESC;
+    </select>
 </mapper>
 

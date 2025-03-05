@@ -134,7 +134,7 @@ public class AiAnalysisFinalHistoryService {
                         "### Trading Symbol: %s\n\n" +
                         "### Market Data (JSON Format):\n" +
                         "{\n" +
-                        "  \"recentKlines\": %s,\n" + // 1초 간격의 Kline 데이터
+                        "  \"recentKlines\": %s,\n" + // 1분 간격의 Kline 데이터
                         "  \"recentTrades\": %s,\n" + // 1초 간격의 Trade 데이터
                         "  \"fundingRates\": %s\n" +  // 1초 간격의 Funding Rate 데이터
                         "}\n\n" +
