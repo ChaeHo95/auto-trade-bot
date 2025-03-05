@@ -51,5 +51,5 @@
     </root>
 
     <!-- 프로젝트 패키지 로그 레벨 설정 -->
-    <logger name="com.example" level="DEBUG"/>
+    <logger name="com.example" level="INFO"/>
 </configuration>

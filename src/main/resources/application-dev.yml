@@ -31,8 +31,8 @@ spring:
   logging:
     level:
       root: INFO  # 기본 로그 레벨 (DEBUG, INFO, WARN, ERROR)
-      org.springframework.web: DEBUG  # Spring Web 관련 로그 자세히 출력
-      com.example.autotradebot: DEBUG  # 프로젝트 패키지 내 로그 출력 레벨
+      org.springframework.web: INFO  # Spring Web 관련 로그 자세히 출력
+      com.example.autotradebot: INFO  # 프로젝트 패키지 내 로그 출력 레벨
 
   web:
     cors:
@@ -50,17 +50,9 @@ spring:
         - Content-Type
       exposed-headers:
         - Authorization
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        api-key: ${OPENAI_API_KEY}
-      embedding:
-        api-key: ${OPENAI_API_KEY}
-    vertex-ai:
-      api-key: ${GEMINI_API_KEY}
-      project-id: ${GEMINI_PROJECT_ID}
-      location: us-central1
+  task:
+    scheduling:
+      enabled: true
 
 mybatis:
   configuration:
@@ -74,3 +66,5 @@ symbols: XRPUSDT
 enable:
   binance:
     websocket: true
+  custom:
+    scheduling: true

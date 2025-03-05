@@ -24,7 +24,7 @@ public class BinanceKlineService {
     public void saveKline(BinanceKlineDTO klineDTO) {
         try {
             binanceKlineMapper.insertKline(klineDTO);
-            logger.info("✅ Kline 데이터 저장 완료: {}", klineDTO);
+            logger.debug("✅ Kline 데이터 저장 완료: {}", klineDTO);
         } catch (Exception e) {
             logger.error("❌ Kline 데이터 저장 실패: {}", e.getMessage());
         }

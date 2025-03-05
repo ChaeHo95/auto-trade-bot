@@ -7,10 +7,10 @@
 
     <!-- ✅ AI 분석 결과 저장 -->
     <insert id="insertAiAnalysisFinalHistory">
-        INSERT INTO ai_analysis_final_history (symbol, analysis_time, chart_analysis_id, recommended_position,
-                                               executed_position, profit_loss, confidence_score)
-        VALUES (#{symbol}, #{analysisTime}, #{chartAnalysisId}, #{recommendedPosition},
-                #{executedPosition}, #{profitLoss}, #{confidenceScore});
+        INSERT INTO ai_analysis_final_history (symbol, analysis_time, recommended_position,
+                                               executed_position, profit_loss, confidence_score, reason)
+        VALUES (#{symbol}, #{analysisTime}, #{recommendedPosition},
+                #{executedPosition}, #{profitLoss}, #{confidenceScore}, #{reason});
     </insert>
 
     <!-- ✅ 특정 심볼의 최신 AI 분석 결과 조회 -->

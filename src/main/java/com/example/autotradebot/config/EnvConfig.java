@@ -9,11 +9,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class EnvConfig {
     private final Logger logger = LoggerFactory.getLogger(EnvConfig.class);
-    private final Dotenv dotenv;
+    private Dotenv dotenv = Dotenv.load();
 
     public EnvConfig() {
         // ✅ 실행 환경 (local, dev, prod)을 가져오기
-        String envProfile = System.getenv("ENV_PROFILE");
+        String envProfile = dotenv.get("ENV_PROFILE");
         if (envProfile == null || envProfile.isEmpty()) {
             envProfile = "local";  // 기본값을 local로 설정
         }

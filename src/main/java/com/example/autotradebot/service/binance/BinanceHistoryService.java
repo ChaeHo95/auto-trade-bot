@@ -62,7 +62,7 @@ public class BinanceHistoryService {
      * ✅ 선물 Continuous Kline 데이터 저장
      */
     private void saveHistoricalKlines(String market, String interval, BigInteger startTime) {
-        logger.info("📡 {} 선물 Continuous Kline 데이터 요청 (interval: {}, 시작 시간: {})", market, interval, startTime);
+        logger.debug("📡 {} 선물 Continuous Kline 데이터 요청 (interval: {}, 시작 시간: {})", market, interval, startTime);
 
         String pair = market.toUpperCase();
         String contractType = "PERPETUAL";
@@ -77,7 +77,7 @@ public class BinanceHistoryService {
      * ✅ 24시간 선물 Ticker 데이터 저장
      */
     public void saveTicker(String market) {
-        logger.info("📡 {} Ticker 데이터 요청 시작", market);
+        logger.debug("📡 {} Ticker 데이터 요청 시작", market);
 
         String url = String.format("/ticker/24hr?symbol=%s", market.toUpperCase());
 
@@ -102,7 +102,7 @@ public class BinanceHistoryService {
                     tickerDTO.setEventTime(jsonObject.get("closeTime").getAsBigInteger());
 
                     tickerMapper.insertTicker(tickerDTO);
-                    logger.info("✅ {} Ticker 데이터 저장 완료", market);
+                    logger.debug("✅ {} Ticker 데이터 저장 완료", market);
                     return Mono.empty();
                 })
                 .block();
@@ -112,7 +112,7 @@ public class BinanceHistoryService {
      * ✅ 최근 거래 내역 저장 (최대 1000개 요청 가능)
      */
     public void saveHistoricalTrades(String market, int limit) {
-        logger.info("📡 {} Trade 데이터 요청 시작 (limit: {})", market, limit);
+        logger.debug("📡 {} Trade 데이터 요청 시작 (limit: {})", market, limit);
 
         String url = String.format("/trades?symbol=%s&limit=%d", market.toUpperCase(), limit);
 
@@ -137,7 +137,7 @@ public class BinanceHistoryService {
 
                         tradeMapper.insertTrade(tradeDTO);
                     }
-                    logger.info("✅ {} Trade 데이터 저장 완료", market);
+                    logger.debug("✅ {} Trade 데이터 저장 완료", market);
                     return Mono.empty();
                 })
                 .block();
@@ -147,7 +147,7 @@ public class BinanceHistoryService {
      * ✅ 펀딩 비율 데이터 저장
      */
     public void saveFundingRates(String market) {
-        logger.info("📡 {} Funding Rate 데이터 요청 시작", market);
+        logger.debug("📡 {} Funding Rate 데이터 요청 시작", market);
 
         String url = String.format("/fundingRate?symbol=%s&limit=1000", market.toUpperCase());
 
@@ -170,7 +170,7 @@ public class BinanceHistoryService {
 
                         fundingRateMapper.insertFundingRate(fundingRateDTO);
                     }
-                    logger.info("✅ {} Funding Rate 데이터 저장 완료", market);
+                    logger.debug("✅ {} Funding Rate 데이터 저장 완료", market);
                     return Mono.empty();
                 })
                 .block();
@@ -180,7 +180,7 @@ public class BinanceHistoryService {
      * ✅ Aggregate Trade 데이터 저장 (묶음 거래)
      */
     public void saveAggTrades(String market, int limit) {
-        logger.info("📡 {} Aggregate Trade 데이터 요청 시작 (limit: {})", market, limit);
+        logger.debug("📡 {} Aggregate Trade 데이터 요청 시작 (limit: {})", market, limit);
 
         String url = String.format("/aggTrades?symbol=%s&limit=%d", market.toUpperCase(), limit);
 
@@ -205,7 +205,7 @@ public class BinanceHistoryService {
 
                         aggTradeMapper.insertAggTrade(aggTradeDTO);
                     }
-                    logger.info("✅ {} Aggregate Trade 데이터 저장 완료", market);
+                    logger.debug("✅ {} Aggregate Trade 데이터 저장 완료", market);
                     return Mono.empty();
                 })
                 .block();
@@ -225,9 +225,9 @@ public class BinanceHistoryService {
         if (lastFundingTime == null || now.compareTo(lastFundingTime) > 0) {
             logger.warn("📥 {} Funding Rate 데이터 부족! 새로 가져오기", market);
             saveFundingRates(market);
-            logger.info("✅ {} Funding Rate 데이터 충분 (최근 데이터: {})", market, lastFundingTime);
+            logger.debug("✅ {} Funding Rate 데이터 충분 (최근 데이터: {})", market, lastFundingTime);
         } else {
-            logger.info("✅ {} Funding Rate 데이터 최신 상태 유지 (최근 데이터: {})", market, lastFundingTime);
+            logger.debug("✅ {} Funding Rate 데이터 최신 상태 유지 (최근 데이터: {})", market, lastFundingTime);
         }
     }
 
@@ -251,7 +251,7 @@ public class BinanceHistoryService {
             saveHistoricalKlines(market, "1m", start);
             isKlineUpdated = true;
         } else {
-            logger.info("✅ {} Kline 데이터 충분 (최근 데이터: {})", market, lastKlineTime);
+            logger.debug("✅ {} Kline 데이터 충분 (최근 데이터: {})", market, lastKlineTime);
         }
         return isKlineUpdated;
     }
@@ -264,7 +264,7 @@ public class BinanceHistoryService {
 
         logger.warn("📥 {} Ticker 데이터 부족! 새로 가져오기", market);
         saveTicker(market);
-        logger.info("✅ {} Ticker 데이터 충분 (최근 데이터: {})", market, lastTickerTime);
+        logger.debug("✅ {} Ticker 데이터 충분 (최근 데이터: {})", market, lastTickerTime);
     }
 
     private void checkAndFetchMissingTradeData(String market) {
@@ -273,7 +273,7 @@ public class BinanceHistoryService {
 
         logger.warn("📥 {} Trade 데이터 부족! 새로 가져오기", market);
         saveHistoricalTrades(market, 1000);
-        logger.info("✅ {} Trade 데이터 충분 (최근 데이터: {})", market, lastTradeTime);
+        logger.debug("✅ {} Trade 데이터 충분 (최근 데이터: {})", market, lastTradeTime);
     }
 
 
@@ -291,9 +291,9 @@ public class BinanceHistoryService {
         if (lastAggTradeTime == null || now.compareTo(lastAggTradeTime) > 0) {
             logger.warn("📥 {} Aggregate Trade 데이터 부족! 새로 가져오기", market);
             saveAggTrades(market, 1000);
-            logger.info("✅ {} Aggregate Trade 데이터 충분 (최근 데이터: {})", market, lastAggTradeTime);
+            logger.debug("✅ {} Aggregate Trade 데이터 충분 (최근 데이터: {})", market, lastAggTradeTime);
         } else {
-            logger.info("✅ {} Aggregate Trade 데이터 최신 상태 유지 (최근 데이터: {})", market, lastAggTradeTime);
+            logger.debug("✅ {} Aggregate Trade 데이터 최신 상태 유지 (최근 데이터: {})", market, lastAggTradeTime);
         }
     }
 
@@ -327,7 +327,7 @@ public class BinanceHistoryService {
 
                         klineMapper.insertKline(klineDTO);
                     }
-                    logger.info("✅ {} Kline 데이터 저장 완료", market);
+                    logger.debug("✅ {} Kline 데이터 저장 완료", market);
                     return Mono.empty();
                 });
     }

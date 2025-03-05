@@ -22,7 +22,7 @@ public class BinanceTickerService {
     public void saveTicker(BinanceTickerDTO tickerDTO) {
         try {
             binanceTickerMapper.insertTicker(tickerDTO);
-            logger.info("✅ Ticker 데이터 저장 완료: {}", tickerDTO);
+            logger.debug("✅ Ticker 데이터 저장 완료: {}", tickerDTO);
         } catch (Exception e) {
             logger.error("❌ Ticker 데이터 저장 실패: {}", e.getMessage());
         }

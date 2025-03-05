@@ -29,7 +29,7 @@ public class ChatGptPredictionCacheManager {
     @PostConstruct
     public void init() {
         for (String symbol : symbols) {
-            List<PredictionDTO> predictionDTOList = marketAnalysisMapper.getChartAnalysisLimit("CHATGPT", symbol, 200);
+            List<PredictionDTO> predictionDTOList = marketAnalysisMapper.getChartAnalysisLimit(symbol, "CHATGPT", 200);
             predictionDTOList.forEach(predictionDTO -> {
                 putPrediction(symbol, predictionDTO);
             });

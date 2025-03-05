@@ -57,12 +57,12 @@ public class BinanceWebSocketService {
 
     @PostConstruct
     public void initWebSocket() {
+        if (!enableWebSocket) {
+            logger.info("⚠ WebSocket 실행이 비활성화됨.");
+            return; // 실행하지 않음
+        }
+        
         try {
-            if (!enableWebSocket) {
-                logger.info("⚠ WebSocket 실행이 비활성화됨.");
-                return; // 실행하지 않음
-            }
-
             // ✅ 구독할 심볼 리스트 설정
             List<String> markets = symbols.stream()
                     .map(v -> v.toLowerCase(Locale.ROOT))

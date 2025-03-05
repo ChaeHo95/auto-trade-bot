@@ -71,6 +71,13 @@ public class GptService {
 
                     String cleanedResponseText = content.replace("```json", "").replace("```", "").trim();
 
+                    int jsonStart = cleanedResponseText.indexOf("{");
+                    int jsonEnd = cleanedResponseText.lastIndexOf("}");
+
+                    if (jsonStart == -1 || jsonEnd == -1) {
+                        throw new IllegalStateException("AI 응답에서 JSON 데이터를 찾을 수 없습니다.");
+                    }
+                    
                     return cleanedResponseText;
                 } else {
                     logger.error("No valid content found in the OpenAI response.");

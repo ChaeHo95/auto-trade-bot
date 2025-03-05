@@ -11,9 +11,9 @@ public class AiAnalysisFinalHistoryDTO {
     private BigInteger id;
     private String symbol;
     private LocalDateTime analysisTime;
-    private BigInteger chartAnalysisId;
     private String recommendedPosition;
     private String executedPosition;
     private BigDecimal profitLoss;
     private BigDecimal confidenceScore;
+    private String reason; // 분석 이유
 }

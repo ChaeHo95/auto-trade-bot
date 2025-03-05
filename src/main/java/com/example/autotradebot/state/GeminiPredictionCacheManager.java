@@ -29,7 +29,7 @@ public class GeminiPredictionCacheManager {
     @PostConstruct
     public void init() {
         for (String symbol : symbols) {
-            List<PredictionDTO> predictionDTOList = marketAnalysisMapper.getChartAnalysisLimit("GEMINI", symbol, 200);
+            List<PredictionDTO> predictionDTOList = marketAnalysisMapper.getChartAnalysisLimit(symbol, "GEMINI", 200);
             predictionDTOList.forEach(predictionDTO -> {
                 putPrediction(symbol, predictionDTO);
             });

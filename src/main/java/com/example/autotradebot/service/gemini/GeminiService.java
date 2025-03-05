@@ -35,7 +35,7 @@ public class GeminiService {
         JsonObject requestBody = createRequestBody(systemMessage, userMessage);
         return getGeminiResponse(requestBody);
     }
-    
+
     /**
      * ✅ Gemini API에 프롬프트 요청 후 응답 반환 (비동기 방식)
      */
@@ -54,6 +54,13 @@ public class GeminiService {
                     })
                     .block(); // ✅ 동기 실행
 
+            int jsonStart = response.indexOf("{");
+            int jsonEnd = response.lastIndexOf("}");
+
+            if (jsonStart == -1 || jsonEnd == -1) {
+                throw new IllegalStateException("AI 응답에서 JSON 데이터를 찾을 수 없습니다.");
+            }
+            
             // ✅ 여기서 parseResponse 실행 후 결과 리턴
             return parseResponse(response).block();
 

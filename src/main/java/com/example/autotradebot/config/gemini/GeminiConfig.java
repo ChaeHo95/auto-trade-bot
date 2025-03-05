@@ -46,7 +46,7 @@ public class GeminiConfig {
         }
 
         String fullUrl = endpoint + "?key=" + getGeminiApiKey();
-        logger.info("✅ Gemini API Endpoint 로드 성공: {}", fullUrl);
+        logger.info("✅ Gemini API Endpoint 로드 성공: {}", endpoint);
         return fullUrl;
     }
 }

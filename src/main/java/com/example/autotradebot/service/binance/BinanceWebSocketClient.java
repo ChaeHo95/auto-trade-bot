@@ -31,7 +31,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
     private int reconnectAttempts = 0;
 
 
-    @Value("${enable.binance.websocket:false}") // 기본값 false
+    @Value("${enable.binance.websocket}") // 기본값 false
     private boolean enableWebSocket;
 
     /**
@@ -59,7 +59,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
     @Scheduled(fixedDelay = 1 * 60 * 1000)
     public void checkAndReconnect() {
         if (!enableWebSocket) {
-            logger.info("⚠ WebSocket 실행이 비활성화됨.");
+            logger.debug("⚠ WebSocket 실행이 비활성화됨.");
             return; // 실행하지 않음
         }
 
@@ -104,7 +104,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
                 return;
             }
 
-            logger.info("📩 WebSocket 메시지 수신 [{}]: {}", stream, data.toString());
+            logger.debug("📩 WebSocket 메시지 수신 [{}]: {}", stream, data.toString());
 
             if (stream.contains("@kline")) {
                 handleKlineMessage(data);
@@ -132,7 +132,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
             BinanceKlineDTO klineDTO = objectMapper.treeToValue(data, BinanceKlineDTO.class);
             if (klineDTO.getIsKlineClosed()) {
                 klineService.saveKline(klineDTO);
-                logger.info("📊 Kline 저장됨: {}", klineDTO);
+                logger.debug("📊 Kline 저장됨: {}", klineDTO);
             }
         } catch (Exception e) {
             logger.error("❌ Kline 저장 오류: ", e);
@@ -146,7 +146,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
         try {
             BinanceTickerDTO tickerDTO = objectMapper.treeToValue(data, BinanceTickerDTO.class);
             tickerService.saveTicker(tickerDTO);
-            logger.info("📈 Ticker 저장됨: {}", tickerDTO);
+            logger.debug("📈 Ticker 저장됨: {}", tickerDTO);
         } catch (Exception e) {
             logger.error("❌ Ticker 저장 오류: ", e);
         }
@@ -159,7 +159,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
         try {
             BinanceTradeDTO tradeDTO = objectMapper.treeToValue(data, BinanceTradeDTO.class);
             tradeService.saveTrade(tradeDTO);
-            logger.info("💹 Trade 저장됨: {}", tradeDTO);
+            logger.debug("💹 Trade 저장됨: {}", tradeDTO);
         } catch (Exception e) {
             logger.error("❌ Trade 저장 오류: ", e);
         }
@@ -172,7 +172,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
         try {
             BinanceAggTradeDTO aggTradeDTO = objectMapper.treeToValue(data, BinanceAggTradeDTO.class);
             aggTradeService.saveAggTrade(aggTradeDTO);
-            logger.info("📦 Aggregate Trade 저장됨: {}", aggTradeDTO);
+            logger.debug("📦 Aggregate Trade 저장됨: {}", aggTradeDTO);
         } catch (Exception e) {
             logger.error("❌ Aggregate Trade 저장 오류: ", e);
         }
@@ -185,7 +185,7 @@ public class BinanceWebSocketClient extends WebSocketClient {
         try {
             BinanceFundingRateDTO fundingRateDTO = objectMapper.treeToValue(data, BinanceFundingRateDTO.class);
             fundingRateService.saveFundingRate(fundingRateDTO);
-            logger.info("🔄 Mark Price 저장됨: {}", fundingRateDTO);
+            logger.debug("🔄 Mark Price 저장됨: {}", fundingRateDTO);
         } catch (Exception e) {
             logger.error("❌ Mark Price 저장 오류: ", e);
         }
@@ -210,23 +210,30 @@ public class BinanceWebSocketClient extends WebSocketClient {
         reconnectWithDelay();
     }
 
-    /**
-     * ✅ WebSocket 재연결 (지수 백오프 적용)
-     */
+
     private void reconnectWithDelay() {
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            long delay = RECONNECT_DELAY * (long) Math.pow(2, reconnectAttempts);
+        // 재연결 시도 횟수가 MAX_RECONNECT_ATTEMPTS 이하일 때만 실행
+        while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            // 지수적으로 대기 시간 증가, 최대 30초 (30000ms)로 제한
+            long delay = Math.min(RECONNECT_DELAY * (long) Math.pow(2, reconnectAttempts), 30000);
             reconnectAttempts++;
-            logger.info("⏳ {}ms 후 WebSocket 재연결 시도 ({} / {})", delay, reconnectAttempts, MAX_RECONNECT_ATTEMPTS);
+
+            logger.debug("⏳ {}ms 후 WebSocket 재연결 시도 ({} / {})", delay, reconnectAttempts, MAX_RECONNECT_ATTEMPTS);
 
             try {
-                Thread.sleep(delay);
-                reconnect();
+                Thread.sleep(delay);  // 대기 후 재연결 시도
+                reconnect();  // 재연결 메서드 호출
+                return; // 성공적으로 재연결 되었으면 종료
             } catch (InterruptedException e) {
+                // 스레드 중단 예외 처리
                 Thread.currentThread().interrupt();
                 logger.error("❌ 재연결 중단됨: ", e);
+                break; // InterruptedException 발생 시 루프 종료
             }
-        } else {
+        }
+
+        // 최대 재연결 시도 횟수를 초과한 경우 로그 남기기
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
             logger.error("❌ 최대 재연결 시도 횟수 초과. WebSocket 연결 종료.");
         }
     }
