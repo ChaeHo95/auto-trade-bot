@@ -33,7 +33,7 @@ public class ChartAnalysisScheduler {
     /**
      * ✅ 1분마다 호출되며, 심볼별로 15분이 지난 데이터만 다시 호출
      */
-    @Scheduled(fixedRate = 60000) // 1분마다 실행 (60,000ms = 1분)
+    @Scheduled(fixedRate = 60000, initialDelay = 600000)  // 1분마다 실행 (60,000ms = 1분)
     public void scheduledChartAnalysis() {
         logger.info("차트 분석 스케줄 시작");
 

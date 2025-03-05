@@ -31,6 +31,11 @@ public class JsonUtils {
             try {
                 String value = jsonObject.get(key).getAsString();
 
+                // 값이 "null" 또는 "NULL"인 경우 처리
+                if ("null".equalsIgnoreCase(value) || "NULL".equalsIgnoreCase(value)) {
+                    return "N/A";
+                }
+
                 // 빈 문자열 처리: 빈 문자열이면 "N/A" 반환
                 return value.isEmpty() ? "N/A" : value;
             } catch (ClassCastException e) {

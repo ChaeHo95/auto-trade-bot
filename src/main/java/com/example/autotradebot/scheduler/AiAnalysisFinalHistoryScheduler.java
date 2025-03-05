@@ -48,7 +48,7 @@ public class AiAnalysisFinalHistoryScheduler {
     /**
      * ✅ 매 1분마다 AI 최종 분석 수행 및 저장
      */
-    @Scheduled(fixedRate = 60000) // 1분마다 실행 (60,000ms = 1분)
+    @Scheduled(fixedRate = 60000, initialDelay = 150000)  // 1분마다 실행 (60,000ms = 1분)
     public void processAiFinalAnalysis() {
         logger.info("AI 최종 분석 프로세스 시작");
 
