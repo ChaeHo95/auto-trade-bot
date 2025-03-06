@@ -66,5 +66,6 @@ symbols: XRPUSDT
 enable:
   binance:
     websocket: true
-  custom:
+    scheduling: true
+  ai:
     scheduling: true

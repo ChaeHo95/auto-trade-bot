@@ -8,6 +8,8 @@ import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +17,8 @@ import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 @Component
+@EnableScheduling
+@ConditionalOnProperty(name = "enable.binance.scheduling", havingValue = "true", matchIfMissing = false)
 public class BinanceWebSocketClient extends WebSocketClient {
 
     private static final Logger logger = LoggerFactory.getLogger(BinanceWebSocketClient.class);
@@ -62,10 +66,11 @@ public class BinanceWebSocketClient extends WebSocketClient {
     }
 
     /**
-     * ✅ WebSocket 상태 체크 및 자동 재연결 (5분마다 실행)
+     * ✅ WebSocket 상태 체크 및 자동 재연결 (1분마다 실행)
      */
-    @Scheduled(fixedDelay = 1 * 60 * 1000)
+    @Scheduled(fixedRate = 1 * 60 * 1000)
     public void checkAndReconnect() {
+        logger.info("⚠️ WebSocket 작동 확인.");
         if (!enableWebSocket) {
             logger.debug("⚠ WebSocket 실행이 비활성화됨.");
             return; // 실행하지 않음
@@ -252,22 +257,30 @@ public class BinanceWebSocketClient extends WebSocketClient {
 
 
     private void reconnectWithDelay() {
-        // 재연결 시도 횟수가 MAX_RECONNECT_ATTEMPTS 이하일 때만 실행
-        while (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            // 지수적으로 대기 시간 증가, 최대 30초 (30000ms)로 제한
-            long delay = Math.min(RECONNECT_DELAY * (long) Math.pow(2, reconnectAttempts), 30000);
-            reconnectAttempts++;
+        for (int reconnectAttempts = 0; reconnectAttempts < MAX_RECONNECT_ATTEMPTS; reconnectAttempts++) {
 
-            logger.debug("⏳ {}ms 후 WebSocket 재연결 시도 ({} / {})", delay, reconnectAttempts, MAX_RECONNECT_ATTEMPTS);
+            // 지수적으로 대기 시간 증가, 최대 30초 (30000ms)로 제한
+            long delay = RECONNECT_DELAY * (reconnectAttempts + 1);  // reconnectAttempts + 1 로 지연 시간 증가
+            delay = Math.min(delay, 30000);  // 최대 30초로 제한
+
+            // 재연결 시도와 대기 시간 로그 찍기
+            logger.debug("⏳ WebSocket 재연결 시도 중... 시도 {} / {}. 대기 시간: {}ms", reconnectAttempts + 1, MAX_RECONNECT_ATTEMPTS, delay);
 
             try {
+                // 스레드가 인터럽트될 수 있는 상황 처리
+                if (Thread.currentThread().isInterrupted()) {
+                    logger.error("❌ 재연결 중 스레드가 인터럽트되었습니다. 작업을 중단합니다.");
+                    break;  // 인터럽트 상태이면 종료
+                }
+
                 Thread.sleep(delay);  // 대기 후 재연결 시도
                 reconnect();  // 재연결 메서드 호출
+                logger.info("✅ WebSocket 재연결 성공! 시도 {} / {}", reconnectAttempts + 1, MAX_RECONNECT_ATTEMPTS); // 재연결 성공 시 로그
                 return; // 성공적으로 재연결 되었으면 종료
             } catch (InterruptedException e) {
                 // 스레드 중단 예외 처리
-                Thread.currentThread().interrupt();
-                logger.error("❌ 재연결 중단됨: ", e);
+                Thread.currentThread().interrupt();  // 인터럽트 상태 다시 설정
+                logger.error("❌ 재연결 중단됨: 스레드 인터럽트 예외 발생. 시도 {} / {}", reconnectAttempts + 1, MAX_RECONNECT_ATTEMPTS, e);
                 break; // InterruptedException 발생 시 루프 종료
             }
         }

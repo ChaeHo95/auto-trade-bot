@@ -7,11 +7,9 @@ import com.example.autotradebot.dto.binance.BinanceOrderBookEntryDTO;
 import com.example.autotradebot.dto.binance.BinancePartialBookDepthDTO;
 import com.example.autotradebot.mapper.analysis.AiAnalysisFinalHistoryMapper;
 import com.example.autotradebot.mapper.analysis.MarketAnalysisMapper;
+import com.example.autotradebot.service.binance.BinanceService;
 import com.example.autotradebot.service.gemini.GeminiService;
-import com.example.autotradebot.state.ChatGptChartAnalysisCacheManager;
-import com.example.autotradebot.state.ChatGptPredictionCacheManager;
-import com.example.autotradebot.state.GeminiChartAnalysisCacheManager;
-import com.example.autotradebot.state.GeminiPredictionCacheManager;
+import com.example.autotradebot.state.*;
 import com.example.autotradebot.util.JsonUtils;
 import com.example.autotradebot.util.LocalDateTimeAdapter;
 import com.google.gson.Gson;
@@ -38,10 +36,13 @@ public class AiAnalysisFinalHistoryService {
     private ChatGptPredictionCacheManager chatGptPredictionCacheManager;
     private GeminiChartAnalysisCacheManager geminiChartAnalysisCacheManager;
     private GeminiPredictionCacheManager geminiPredictionCacheManager;
+    private final BinanceService binanceService;
 
     private GeminiService geminiService;
     private MarketAnalysisMapper marketAnalysisMapper;
     private JsonUtils jsonUtils;
+
+    private PositionCacheManager positionCacheManager;
 
     @Autowired
     public AiAnalysisFinalHistoryService(AiAnalysisFinalHistoryMapper aiAnalysisFinalHistoryMapper,
@@ -50,7 +51,8 @@ public class AiAnalysisFinalHistoryService {
                                          GeminiChartAnalysisCacheManager geminiChartAnalysisCacheManager,
                                          GeminiPredictionCacheManager geminiPredictionCacheManager,
                                          GeminiService geminiService, MarketAnalysisMapper marketAnalysisMapper,
-                                         JsonUtils jsonUtils
+                                         JsonUtils jsonUtils, BinanceService binanceService,
+                                         PositionCacheManager positionCacheManager
     ) {
         this.aiAnalysisFinalHistoryMapper = aiAnalysisFinalHistoryMapper;
         this.chatGptChartAnalysisCacheManager = chatGptChartAnalysisCacheManager;
@@ -60,17 +62,20 @@ public class AiAnalysisFinalHistoryService {
         this.geminiService = geminiService;
         this.marketAnalysisMapper = marketAnalysisMapper;
         this.jsonUtils = jsonUtils;
+        this.binanceService = binanceService;
+        this.positionCacheManager = positionCacheManager;
     }
 
     // ✅ AI 분석
     public void processAiAnalysisFinal(String symbol) {
+
         List<ChartAnalysisDTO> chatGptChartAnalysis = chatGptChartAnalysisCacheManager.getAllChartAnalysis(symbol);
         List<PredictionDTO> chatGptPredictions = chatGptPredictionCacheManager.getAllPredictions(symbol);
         List<ChartAnalysisDTO> geminiChartAnalysis = geminiChartAnalysisCacheManager.getAllChartAnalysis(symbol);
         List<PredictionDTO> geminiPredictions = geminiPredictionCacheManager.getAllPredictions(symbol);
 
 
-        List<MarketAnalysisKlineDTO> recentKlines = marketAnalysisMapper.getRecentKlines(symbol, 1000)
+        List<MarketAnalysisKlineDTO> recentKlines = marketAnalysisMapper.getRecentKlines(symbol, 500)
                 .stream()
                 .map(kline -> MarketAnalysisKlineDTO.builder()
                         .openTime(kline.getOpenTime())
@@ -83,7 +88,7 @@ public class AiAnalysisFinalHistoryService {
                         .build())
                 .collect(Collectors.toList());
 
-        List<MarketAnalysisTradeDTO> recentTrades = marketAnalysisMapper.getRecentTrades(symbol, 1000)
+        List<MarketAnalysisTradeDTO> recentTrades = marketAnalysisMapper.getRecentTrades(symbol, 500)
                 .stream()
                 .map(trade -> MarketAnalysisTradeDTO.builder()
                         .price(trade.getPrice())
@@ -94,7 +99,7 @@ public class AiAnalysisFinalHistoryService {
                 .collect(Collectors.toList());
 
 
-        List<MarketAnalysisFundingRateDTO> fundingRates = marketAnalysisMapper.getFundingRates(symbol, 1000)
+        List<MarketAnalysisFundingRateDTO> fundingRates = marketAnalysisMapper.getFundingRates(symbol, 500)
                 .stream()
                 .map(fundingRate -> MarketAnalysisFundingRateDTO.builder()
                         .fundingTime(fundingRate.getFundingTime())
@@ -105,9 +110,9 @@ public class AiAnalysisFinalHistoryService {
                 .collect(Collectors.toList());
 
 
-        List<BinanceLiquidationOrderDTO> liquidationOrders = marketAnalysisMapper.getLiquidationOrders(symbol, 1000);
+        List<BinanceLiquidationOrderDTO> liquidationOrders = marketAnalysisMapper.getLiquidationOrders(symbol, 500);
 
-        List<BinancePartialBookDepthDTO> partialBookDepth = marketAnalysisMapper.getPartialBookDepth(symbol, 1000);
+        List<BinancePartialBookDepthDTO> partialBookDepth = marketAnalysisMapper.getPartialBookDepth(symbol, 500);
 
         for (BinancePartialBookDepthDTO depth : partialBookDepth) {
             List<BinanceOrderBookEntryDTO> orderBookEntries = marketAnalysisMapper.getOrderBookEntriesBySymbolAndEventTime(symbol, depth.getEventTime());
@@ -126,11 +131,17 @@ public class AiAnalysisFinalHistoryService {
             depth.setAsks(asks);
         }
 
-        BigDecimal movingAverage = marketAnalysisMapper.getMovingAverage(symbol, 1000);
+        BigDecimal movingAverage = marketAnalysisMapper.getMovingAverage(symbol, 500);
         BigDecimal rsiValue = marketAnalysisMapper.getRSIValue(symbol);
         BigDecimal macdValue = marketAnalysisMapper.getMACDValue(symbol);
 
         String analysisTimeUnit = "5 minutes";  // 데이터 분석이 5분마다 진행된다고 명시
+        String partialBookDepthToJson = convertPartialBookDepthToJson(partialBookDepth);
+        String convertLiquidationOrderToJson = convertLiquidationOrderToJson(liquidationOrders);
+        String takerBuySellVolume = binanceService.getTakerBuySellVolume(symbol, 500);
+        String longShortRatio = binanceService.getLongShortRatio(symbol, 500);
+        Position cacheManagerPosition = positionCacheManager.getPosition(symbol);
+
 
         String systemMessage =
                 "You are a highly advanced crypto trading assistant specializing in analyzing market trends and price movements. " +
@@ -152,69 +163,56 @@ public class AiAnalysisFinalHistoryService {
                         "- **Stop-Loss Price:** Suggest an appropriate stop-loss price to minimize potential losses.\n" +
                         "- **Take-Profit Price:** Suggest a take-profit price based on the current market analysis.\n" +
                         "- **Leverage Level:** Recommend a suitable leverage level based on the overall market conditions.\n\n" +
-                        "Ensure that your recommendation is well-supported by the available data and previous analysis results.";
+                        "Ensure that your recommendation is well-supported by the available data, previous analysis results, and all relevant market factors. " +
+                        "Your analysis should integrate recent price movements, technical indicators, funding rates, trade volumes, and previous predictions to provide a well-rounded and actionable trading recommendation.";
 
 
-        String userMessage = String.format(
+        String userMessage =
                 "Analyze the following market data and predict the best trading position:\n\n" +
-                        "### Trading Symbol: %s\n\n" +
+                        "### Trading Symbol: " + symbol + "\n\n" +
+                        "### Current Position: " + cacheManagerPosition.toJson() + "\n\n" +
                         "### Market Data (JSON Format):\n" +
                         "{\n" +
-                        "  \"recentKlines\": %s,\n" + // 1분 간격의 Kline 데이터
-                        "  \"recentTrades\": %s,\n" + // 1초 간격의 Trade 데이터
-                        "  \"fundingRates\": %s\n" +  // 1초 간격의 Funding Rate 데이터
+                        "  \"recentKlines\": " + convertToJson(recentKlines) + ",\n" + // 1분 간격의 Kline 데이터
+                        "  \"recentTrades\": " + convertToJson(recentTrades) + ",\n" + // 1초 간격의 Trade 데이터
+                        "  \"fundingRates\": " + convertToJson(fundingRates) + ",\n" +  // 1초 간격의 Funding Rate 데이터
+                        "  \"takerBuySellVolume\": " + takerBuySellVolume + ",\n" +  // Taker Buy/Sell Volume 데이터
+                        "  \"longShortRatio\": " + longShortRatio + ",\n" +  // Long/Short Ratio 데이터
+                        "  \"liquidationOrders\": " + convertLiquidationOrderToJson + ",\n" +  // Liquidation Orders 데이터
+                        "  \"partialBookDepth\": " + partialBookDepthToJson + "\n" +  // Partial Book Depth 데이터
                         "}\n\n" +
                         "### Previous Analysis (ChatGPT - Last Prediction):\n" +
-                        "%s\n\n" + // ChatGPT 이전 분석 결과
+                        convertToJson(chatGptChartAnalysis) + "\n\n" + // ChatGPT 이전 분석 결과
                         "### Previous Analysis (Gemini - Last Prediction):\n" +
-                        "%s\n\n" + // Gemini 이전 분석 결과
+                        convertToJson(geminiChartAnalysis) + "\n\n" + // Gemini 이전 분석 결과
                         "### Predictions (ChatGPT):\n" +
-                        "%s\n\n" + // ChatGPT 이전 예측 결과
+                        convertToJson(chatGptPredictions) + "\n\n" + // ChatGPT 이전 예측 결과
                         "### Predictions (Gemini):\n" +
-                        "%s\n\n" + // Gemini 이전 예측 결과
+                        convertToJson(geminiPredictions) + "\n\n" + // Gemini 이전 예측 결과
                         "### Technical Indicators (from 1-minute Candlestick data):\n" +
                         "{\n" +
-                        "  \"movingAverage\": %.2f,\n" + // 1분봉 이동평균
-                        "  \"rsiValue\": %.2f,\n" + // 1분봉 RSI
-                        "  \"macdValue\": %.2f\n" + // 1분봉 MACD
+                        "  \"movingAverage\": " + String.format("%.2f", movingAverage) + ",\n" + // 1분봉 이동평균
+                        "  \"rsiValue\": " + String.format("%.2f", rsiValue) + ",\n" + // 1분봉 RSI
+                        "  \"macdValue\": " + String.format("%.2f", macdValue) + "\n" + // 1분봉 MACD
                         "}\n\n" +
                         "### Timeframes for the data:\n" +
                         " - **Kline Summary** is based on 1-minute candlestick data.\n" +
                         " - **Trade Summary** and **Funding Summary** are based on 1-second intervals.\n\n" +
                         "### Analysis Time Unit:\n" +
                         " - The analysis is based on the data received at **[current timestamp]**, with 1-minute candlesticks for technical indicators.\n" +
-                        " - The analysis interval is **every %s minutes**.\n\n" +
+                        " - The analysis interval is **every " + analysisTimeUnit + " minutes**.\n\n" +
                         "### Your Response Format (JSON):\n" +
                         "{\n" +
-                        "  \"symbol\": \"%s\",\n" +
-                        "  \"analysisTime\": \"%s\",\n" +
-                        "  \"recommendedPosition\": \"%s\",\n" +
-                        "  \"executedPosition\": \"%s\",\n" +
-                        "  \"profitLoss\": \"%s\",\n" +
-                        "  \"confidenceScore\": \"%s\",\n" +
-                        "  \"reason\": \"%s\"\n" +  // 분석 이유 추가
-                        "}\n",
-                symbol,
-                convertToJson(recentKlines),
-                convertToJson(recentTrades),
-                convertToJson(fundingRates),
-                convertToJson(chatGptChartAnalysis),
-                convertToJson(geminiChartAnalysis),
-                convertToJson(chatGptPredictions),
-                convertToJson(geminiPredictions),
-                movingAverage, rsiValue, macdValue,
-                analysisTimeUnit, // 분석 시간 단위
-                symbol,
-                LocalDateTime.now(), // 분석 시간
-                "LONG", // 예시 recommendedPosition
-                "WAIT", // 예시 executedPosition
-                "0.15", // 예시 profitLoss
-                "85", // 예시 confidenceScore
-                "The market is currently in a sideways trend, and further confirmation is needed before making a decision." // 예시 reason
-        );
+                        "  \"symbol\": \"" + symbol + "\",\n" +
+                        "  \"analysisTime\": \"" + LocalDateTime.now() + "\",\n" +
+                        "  \"recommendedPosition\": \"" + "LONG" + "\",\n" + // 예시 recommendedPosition
+                        "  \"executedPosition\": \"" + "WAIT" + "\",\n" + // 예시 executedPosition
+                        "  \"profitLoss\": \"" + "0.15" + "\",\n" + // 예시 profitLoss
+                        "  \"confidenceScore\": \"" + "85" + "\",\n" + // 예시 confidenceScore
+                        "  \"reason\": \"" + "The market is currently in a sideways trend, and further confirmation is needed before making a decision." + "\"\n" + // 예시 reason
+                        "}\n";
 
-//        liquidationOrders, partialBookDepth
-        
+
         String response = geminiService.callGeminiAiApi(systemMessage, userMessage);
 
         JsonReader reader = new JsonReader(new StringReader(response));
@@ -233,6 +231,64 @@ public class AiAnalysisFinalHistoryService {
         aiAnalysisFinalHistoryDTO.setReason(jsonUtils.getString(jsonObject, "reason"));
 
         saveAiAnalysisFinalHistory(aiAnalysisFinalHistoryDTO);
+    }
+
+    private String convertPartialBookDepthToJson(List<BinancePartialBookDepthDTO> partialBookDepthDTOS) {
+        if (partialBookDepthDTOS == null || partialBookDepthDTOS.isEmpty()) {
+            return "[]"; // 빈 배열 반환
+        }
+
+        return partialBookDepthDTOS.stream()
+                .map(depth -> {
+                    if (depth == null) {
+                        return "{}"; // null 요소를 처리
+                    }
+                    return String.format("{ \"eventType\": \"%s\", \"eventTime\": %d, \"transactionTime\": %d, \"symbol\": \"%s\"," +
+                                    " \"firstUpdateId\": %d, \"finalUpdateId\": %d, \"previousUpdateId\": %d, \"bids\": [%s], \"asks\": [%s] }",
+                            depth.getEventType(), depth.getEventTime(), depth.getTransactionTime(), depth.getSymbol(),
+                            depth.getFirstUpdateId(), depth.getFinalUpdateId(), depth.getPreviousUpdateId(),
+                            convertOrderBookEntryToJson(depth.getBids()), convertOrderBookEntryToJson(depth.getAsks()));
+                })
+                .collect(Collectors.joining(",\n"));
+    }
+
+    private String convertLiquidationOrderToJson(List<BinanceLiquidationOrderDTO> liquidationOrderDTOS) {
+        if (liquidationOrderDTOS == null || liquidationOrderDTOS.isEmpty()) {
+            return "[]"; // 빈 배열 반환
+        }
+
+        return liquidationOrderDTOS.stream()
+                .map(order -> {
+                    if (order == null || order.getLiquidation() == null) {
+                        return "{}"; // null 요소를 처리
+                    }
+                    return String.format("{ \"eventType\": \"%s\", \"eventTime\": %d, " +
+                                    "\"symbol\": \"%s\", \"side\": \"%s\"," +
+                                    " \"orderType\": \"%s\", \"timeInForce\": \"%s\", " +
+                                    "\"originalQuantity\": %.2f, \"price\": %.2f, \"averagePrice\": %.2f," +
+                                    " \"orderStatus\": \"%s\", \"lastFilledQuantity\": %.2f, " +
+                                    "\"totalFilledQuantity\": %.2f, \"tradeTime\": %d }",
+                            order.getEventType(), order.getEventTime(), order.getLiquidation().getSymbol(), order.getLiquidation().getSide(),
+                            order.getLiquidation().getOrderType(), order.getLiquidation().getTimeInForce(), order.getLiquidation().getOriginalQuantity(),
+                            order.getLiquidation().getPrice(), order.getLiquidation().getAveragePrice(), order.getLiquidation().getOrderStatus(),
+                            order.getLiquidation().getLastFilledQuantity(), order.getLiquidation().getTotalFilledQuantity(), order.getLiquidation().getTradeTime());
+                })
+                .collect(Collectors.joining(",\n"));
+    }
+
+    private String convertOrderBookEntryToJson(List<BinancePartialBookDepthDTO.OrderBookEntry> orderBookEntries) {
+        if (orderBookEntries == null || orderBookEntries.isEmpty()) {
+            return "[]"; // 빈 배열 반환
+        }
+
+        return orderBookEntries.stream()
+                .map(entry -> {
+                    if (entry == null) {
+                        return "{}"; // null 요소를 처리
+                    }
+                    return String.format("{ \"price\": %.2f, \"quantity\": %.2f }", entry.getPrice(), entry.getQuantity());
+                })
+                .collect(Collectors.joining(",\n"));
     }
 
     private String convertToJson(List<?> dataList) {

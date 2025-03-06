@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Configuration
 @EnableScheduling
-@ConditionalOnProperty(name = "enable.custom.scheduling", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "enable.ai.scheduling", havingValue = "true", matchIfMissing = false)
 public class AiAnalysisFinalHistoryScheduler {
     private Logger logger = LoggerFactory.getLogger(AiAnalysisFinalHistoryScheduler.class);
 
@@ -48,9 +48,9 @@ public class AiAnalysisFinalHistoryScheduler {
     /**
      * ✅ 매 1분마다 AI 최종 분석 수행 및 저장
      */
-    @Scheduled(fixedRate = 60000, initialDelay = 150000)  // 1분마다 실행 (60,000ms = 1분)
+    @Scheduled(fixedRate = 60000, initialDelay = 300000)    // 1분마다 실행 (60,000ms = 1분)
     public void processAiFinalAnalysis() {
-        logger.info("AI 최종 분석 프로세스 시작");
+        logger.info("AI 최종 분석 프로세스 시작 {}", symbols);
 
         for (String symbol : symbols) {
             logger.info("처리 중인 심볼: {}", symbol);

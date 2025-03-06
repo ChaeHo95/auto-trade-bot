@@ -4,6 +4,7 @@ import com.example.autotradebot.dto.analysis.*;
 import com.example.autotradebot.dto.binance.BinanceLiquidationOrderDTO;
 import com.example.autotradebot.dto.binance.BinancePartialBookDepthDTO;
 import com.example.autotradebot.service.analysis.MarketAnalysisService;
+import com.example.autotradebot.service.binance.BinanceService;
 import com.example.autotradebot.service.gemini.GeminiService;
 import com.example.autotradebot.service.gpt.GptService;
 import com.example.autotradebot.state.ChatGptChartAnalysisCacheManager;
@@ -38,6 +39,7 @@ public class ChartAnalysisService {
     private final ChatGptPredictionCacheManager chatGptPredictionCacheManager;
     private final GeminiPredictionCacheManager geminiPredictionCacheManager;
     private final PredictionService predictionService;
+    private final BinanceService binanceService;
 
     @Autowired
     public ChartAnalysisService(GeminiChartAnalysisCacheManager geminiChartAnalysisCacheManager,
@@ -45,7 +47,9 @@ public class ChartAnalysisService {
                                 ChatGptPredictionCacheManager chatGptPredictionCacheManager,
                                 GeminiPredictionCacheManager geminiPredictionCacheManager,
                                 GeminiService geminiService, MarketAnalysisService marketAnalysisService,
-                                PredictionService predictionService, GptService gptService) {
+                                PredictionService predictionService, GptService gptService,
+                                BinanceService binanceService
+    ) {
         this.geminiChartAnalysisCacheManager = geminiChartAnalysisCacheManager;
         this.chatGptChartAnalysisCacheManager = chatGptChartAnalysisCacheManager;
         this.geminiPredictionCacheManager = geminiPredictionCacheManager;
@@ -54,6 +58,7 @@ public class ChartAnalysisService {
         this.marketAnalysisService = marketAnalysisService;
         this.predictionService = predictionService;
         this.gptService = gptService;
+        this.binanceService = binanceService;
     }
 
     /**
@@ -66,9 +71,9 @@ public class ChartAnalysisService {
             return;
         }
 
-
+        int limit = bot.equals("CHATGPT") ? 100 : 50;
         // 1️⃣ 최근 차트 데이터 가져오기
-        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol, bot, 200);
+        MarketAnalysisDTO marketData = marketAnalysisService.getMarketAnalysis(symbol, bot, limit);
 
         // 2️⃣ 심볼별로 캐시된 분석 결과 가져오기
         PredictionDTO cachedPrediction = null;
@@ -130,6 +135,9 @@ public class ChartAnalysisService {
         String liquidationOrder = convertLiquidationOrderToJson(marketAnalysisDTO.getLiquidationOrders());
         String technicalIndicators = convertTechnicalIndicatorsToJson(marketAnalysisDTO.getMovingAverage(), marketAnalysisDTO.getRsiValue(), marketAnalysisDTO.getMacdValue());
 
+        int limit = bot.equals("CHATGPT") ? 100 : 50;
+        String takerBuySellVolume = binanceService.getTakerBuySellVolume(symbol, limit);
+        String longShortRatio = binanceService.getLongShortRatio(symbol, limit);
         // 여기서 "5"를 "30"으로 바꾸면 30분으로 설정 가능
         String analysisTimeUnit = bot.equals("CHATGPT") ? "30" : "5";
 
@@ -162,6 +170,8 @@ public class ChartAnalysisService {
                 + "### Technical Indicators:\n" + technicalIndicators + "\n\n"
                 + "### Partial Book Depth:\n" + partialBookDepth + "\n\n"
                 + "### Liquidation Orders:\n" + liquidationOrder + "\n\n"
+                + "### Taker Buy/Sell Volume:\n" + takerBuySellVolume + "\n\n"
+                + "### Long/Short Ratio:\n" + longShortRatio + "\n\n"
                 + "### Timeframes for the data:\n"
                 + " - **Kline Summary** is based on 1-minute candlestick data.\n"
                 + " - **Trade Summary** and **Funding Summary** are based on 1-second intervals.\n\n"

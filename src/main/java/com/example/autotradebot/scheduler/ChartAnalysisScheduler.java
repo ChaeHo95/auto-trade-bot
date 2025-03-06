@@ -15,7 +15,7 @@ import java.util.Locale;
 
 @Configuration
 @EnableScheduling
-@ConditionalOnProperty(name = "enable.custom.scheduling", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "enable.ai.scheduling", havingValue = "true", matchIfMissing = false)
 public class ChartAnalysisScheduler {
     private static final Logger logger = LoggerFactory.getLogger(ChartAnalysisScheduler.class);
 
@@ -35,7 +35,7 @@ public class ChartAnalysisScheduler {
      */
     @Scheduled(fixedRate = 60000, initialDelay = 600000)  // 1분마다 실행 (60,000ms = 1분)
     public void scheduledChartAnalysis() {
-        logger.info("차트 분석 스케줄 시작");
+        logger.info("차트 분석 스케줄 시작 {}", symbols);
 
         List<String> markets = symbols.stream()
                 .map(v -> v.toLowerCase(Locale.ROOT))
