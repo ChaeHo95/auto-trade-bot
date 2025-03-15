@@ -1,5 +1,5 @@
 server:
-  port: 8080  # 서버 실행 포트 설정
+  port: 58083  # 서버 실행 포트 설정
 
 springdoc:
   packages-to-scan: com.example.autotradebot  # Swagger에서 문서화할 패키지 경로 지정

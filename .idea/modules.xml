@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/auto-trade-bot.iml" filepath="$PROJECT_DIR$/auto-trade-bot.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/auto-trade-bot.main.iml" filepath="$PROJECT_DIR$/.idea/modules/auto-trade-bot.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/auto-trade-bot.iml" filepath="$PROJECT_DIR$/.idea/auto-trade-bot.iml" />
     </modules>
   </component>
 </project>
