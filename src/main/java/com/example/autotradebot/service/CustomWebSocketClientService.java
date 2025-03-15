@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.*;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.client.WebSocketClient;
@@ -20,7 +21,9 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class CustomWebSocketClientService {
@@ -29,6 +32,7 @@ public class CustomWebSocketClientService {
     private static final int MAX_RECONNECT_ATTEMPTS = 5;
     private static final long INITIAL_DELAY_MS = 60000L; // 초기 재연결 지연 시간 1분
     private static final long MAX_DELAY_MS = 60000L;    // 최대 재연결 지연 시간 1분
+    private final ReentrantLock lock = new ReentrantLock();
 
     @Autowired
     private EnvConfig envConfig;
@@ -83,7 +87,7 @@ public class CustomWebSocketClientService {
                 session.subscribe("/topic/positions", new StompFrameHandler() {
                     @Override
                     public Type getPayloadType(StompHeaders headers) {
-                        return String.class; // 필요에 따라 DTO 타입 지정 가능
+                        return Map.class; // 필요에 따라 DTO 타입 지정 가능
                     }
 
                     @Override
@@ -113,14 +117,20 @@ public class CustomWebSocketClientService {
      * 주기적으로 STOMP 연결 상태를 확인하고, 연결이 끊겼으면 재연결을 시도합니다.
      * (필요에 따라 @Scheduled 어노테이션을 활성화하세요.)
      */
-    // @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 60000)
     public void checkConnection() {
-        if (stompSession == null || !stompSession.isConnected()) {
-            logger.warn("⚠ STOMP 연결이 열려있지 않습니다. 재연결 시도합니다.");
-            scheduleReconnect();
-        } else {
-            logger.info("✅ STOMP 연결 정상: {}", stompSession.getSessionId());
+        lock.lock();
+        try {
+            if (stompSession == null || !stompSession.isConnected()) {
+                logger.warn("⚠ STOMP 연결이 열려있지 않습니다. 재연결 시도합니다.");
+                scheduleReconnect();
+            } else {
+                logger.info("✅ STOMP 연결 정상: {}", stompSession.getSessionId());
+            }
+        } finally {
+            lock.unlock();
         }
+
     }
 
     /**
