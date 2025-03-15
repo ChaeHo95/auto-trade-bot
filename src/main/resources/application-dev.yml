@@ -2,7 +2,7 @@ server:
   port: 58083  # 서버 실행 포트 설정
 
 springdoc:
-  packages-to-scan: com.example.autotradebot  # Swagger에서 문서화할 패키지 경로 지정
+  packages-to-scan: com.example.signalmakeserver  # Swagger에서 문서화할 패키지 경로 지정
   default-consumes-media-type: application/json;charset=UTF-8  # 기본 요청 데이터 타입
   default-produces-media-type: application/json;charset=UTF-8  # 기본 응답 데이터 타입
   swagger-ui:
@@ -27,12 +27,6 @@ spring:
     properties:
       hibernate:
         format_sql: true  # SQL 로그 가독성 향상
-
-  logging:
-    level:
-      root: INFO  # 기본 로그 레벨 (DEBUG, INFO, WARN, ERROR)
-      org.springframework.web: INFO  # Spring Web 관련 로그 자세히 출력
-      com.example.autotradebot: INFO  # 프로젝트 패키지 내 로그 출력 레벨
 
   web:
     cors:
@@ -60,12 +54,3 @@ mybatis:
 
 dotenv:
   enabled: true
-
-symbols: XRPUSDT
-
-enable:
-  binance:
-    websocket: true
-    scheduling: true
-  ai:
-    scheduling: true
