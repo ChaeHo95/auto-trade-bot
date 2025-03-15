@@ -60,17 +60,18 @@ dependencies {
     testImplementation("org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4") // MyBatis 테스트 지원
     testImplementation("org.springframework.security:spring-security-test") // Security 관련 테스트 지원
 
-    // ✅ Binance WebSocket을 위한 추가 의존성
+    // ✅WebSocket을 위한 추가 의존성
     implementation("org.springframework.boot:spring-boot-starter-websocket") // Spring Boot WebSocket 지원
     implementation("com.fasterxml.jackson.core:jackson-databind") // JSON 파싱
     implementation("org.java-websocket:Java-WebSocket:1.5.3") // WebSocket 클라이언트 라이브러리
 
-    // ✅ Protocol Buffer (protobuf-java) 의존성 추가 (Spring AI Gemini 사용에 필요)
-    implementation("com.google.protobuf:protobuf-java:4.29.3")
-
+    // ✅ Spring WebFlux
+    // 비동기 논블로킹 웹 애플리케이션 개발 지원
     implementation("org.springframework.boot:spring-boot-starter-webflux:3.4.3")
 
-    runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.119.Final")
+    // ✅ MacOS용 Netty DNS 네이티브 라이브러리
+    // macOS에서 DNS 해석 최적화를 위해 사용
+    runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.119.Final:osx-aarch_64")
 }
 
 

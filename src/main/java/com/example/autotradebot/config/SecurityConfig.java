@@ -20,7 +20,6 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers(new AntPathRequestMatcher("/api/**")).permitAll() // 특정 경로 허용
-                        .requestMatchers(new AntPathRequestMatcher("/mexc/**")).permitAll() // 📌 `/mexc/**` 추후 삭제 ₩
                         .anyRequest().authenticated() // 나머지 요청은 인증 필요
                 )
                 .headers(headers -> headers.disable()); // 모든 보안 헤더 비활성화 (H2 콘솔 등 사용 시)
