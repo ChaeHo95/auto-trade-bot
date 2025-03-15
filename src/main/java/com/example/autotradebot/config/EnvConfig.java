@@ -43,39 +43,15 @@ public class EnvConfig {
     }
 
     @Bean
-    public String getGeminiApiKey() {
-        return getEnvVariable("GEMINI_API_KEY");
-    }
-
-    @Bean
-    public String getGeminiApiEndpoint() {
-        return getEnvVariable("GEMINI_API_ENDPOINT");
-    }
-
-    @Bean
-    public String getBinanceWsUrl() {
-        return getEnvVariable("BINANCE_WS_URL");
-    }
-
-    @Bean
-    public String getBinanceBaseUrl() {
-        return getEnvVariable("BINANCE_BASE_URL");
-    }
-
-    @Bean
-    public String getOpenAiApiKey() {
-        return getEnvVariable("OPENAI_API_KEY");
-    }
-
-    @Bean
-    public String getOpenAiApiEndpoint() {
-        return getEnvVariable("OPENAI_API_ENDPOINT");
-    }
-
-    @Bean
     public String getLogPath() {
         return getEnvVariable("LOG_PATH");
     }
+
+    @Bean
+    public String getWebSocketUrl() {
+        return getEnvVariable("WEB_SOCKET_URL");
+    }
+
 
     private String getEnvVariable(String key) {
         String value = dotenv.get(key);
