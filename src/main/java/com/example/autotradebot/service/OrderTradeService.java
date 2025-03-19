@@ -188,6 +188,7 @@ public class OrderTradeService {
                     } else {
                         logger.info("주문 체결 완료 - 추가 작업 없음");
                         UserPositionHistoryDto positionDto = new UserPositionHistoryDto();
+                        positionDto.setEmailPk(userSettingDto.getEmailPk());
                         positionDto.setSymbol(symbol);
                         positionDto.setLeverage(leverage);
                         positionDto.setQuantity(quantity);
