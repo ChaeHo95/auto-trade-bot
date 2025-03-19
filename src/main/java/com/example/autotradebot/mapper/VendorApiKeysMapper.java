@@ -15,7 +15,7 @@ public interface VendorApiKeysMapper {
 
     VendorApiKeyDto selectVendorApiKeyById(long id);
 
-    VendorApiKeyDto selectVendorApiKeyByAccessKey(String accessKey);
+    VendorApiKeyDto selectVendorApiKeyByEmailPk(String emailPk);
 
     List<VendorApiKeyDto> selectAllVendorApiKeys();
 }

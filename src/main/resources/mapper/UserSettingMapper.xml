@@ -29,6 +29,12 @@
         WHERE idx = #{idx}
     </update>
 
+    <update id="updateUserAmountSetting" parameterType="com.example.autotradebot.dto.UserSettingDto">
+        UPDATE user_setting_table
+        SET amount = #{amount}
+        WHERE email_pk = #{emailPk}
+          AND symbol = #{symbol}
+    </update>
     <!-- 삭제 -->
     <delete id="deleteUserSettingByIdx" parameterType="int">
         DELETE
@@ -51,8 +57,10 @@
     </select>
 
     <!-- 전체 조회 -->
-    <select id="selectAllUserSettings" resultMap="UserSettingResultMap">
+    <select id="selectAllUserSettingsBySymbol" resultMap="UserSettingResultMap">
         SELECT idx, symbol, email_pk, is_active, amount, created_date
         FROM user_setting_table
+        WHERE symbol = #{symbol}
+          AND is_active = true;
     </select>
 </mapper>

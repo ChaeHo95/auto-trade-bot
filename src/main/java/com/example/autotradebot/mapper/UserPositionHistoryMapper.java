@@ -17,5 +17,7 @@ public interface UserPositionHistoryMapper {
 
     List<UserPositionHistoryDto> selectUserPositionHistoriesByEmailPk(String emailPk);
 
+    UserPositionHistoryDto selectUserLastPositionHistoryByEmailPk(String emailPk);
+
     List<UserPositionHistoryDto> selectAllUserPositionHistories();
 }

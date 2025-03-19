@@ -64,6 +64,20 @@
         WHERE email_pk = #{emailPk}
     </select>
 
+    <select id="selectUserLastPositionHistoryByEmailPk" parameterType="string" resultMap="UserPositionHistoryResultMap">
+        SELECT id,
+               email_pk,
+               symbol,
+               entry_price,
+               quantity,
+               position,
+               leverage,
+               created_at
+        FROM user_position_history
+        WHERE email_pk = #{emailPk}
+        ORDER BY created_at DESC LIMIT 1
+    </select>
+
     <select id="selectAllUserPositionHistories" resultMap="UserPositionHistoryResultMap">
         SELECT id,
                email_pk,

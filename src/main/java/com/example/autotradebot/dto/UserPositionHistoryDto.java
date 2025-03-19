@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Date;
 
 @Data
@@ -19,6 +20,6 @@ public class UserPositionHistoryDto {
     private BigDecimal entryPrice;
     private BigDecimal quantity;
     private String position;
-    private Integer leverage;
+    private BigInteger leverage;
     private Date createdAt;
 }

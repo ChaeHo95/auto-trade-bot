@@ -41,10 +41,10 @@
         WHERE id = #{id}
     </select>
 
-    <select id="selectVendorApiKeyByAccessKey" parameterType="string" resultMap="VendorApiKeyResultMap">
+    <select id="selectVendorApiKeyByEmailPk" parameterType="string" resultMap="VendorApiKeyResultMap">
         SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
         FROM vendor_api_keys
-        WHERE access_key = #{accessKey}
+        WHERE email_pk = #{emailPk}
     </select>
 
     <select id="selectAllVendorApiKeys" resultMap="VendorApiKeyResultMap">

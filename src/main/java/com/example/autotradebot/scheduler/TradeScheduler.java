@@ -1,11 +1,14 @@
 package com.example.autotradebot.scheduler;
 
-import com.example.autotradebot.dto.PositionDto;
 import com.example.autotradebot.dto.TradeSignalDto;
+import com.example.autotradebot.dto.UserPositionHistoryDto;
 import com.example.autotradebot.dto.UserSettingDto;
 import com.example.autotradebot.dto.VendorApiKeyDto;
 import com.example.autotradebot.exception.BinanceApiException;
 import com.example.autotradebot.manager.TradeSignalCacheManager;
+import com.example.autotradebot.mapper.UserPositionHistoryMapper;
+import com.example.autotradebot.mapper.UserSettingMapper;
+import com.example.autotradebot.mapper.VendorApiKeysMapper;
 import com.example.autotradebot.service.BinanceService;
 import com.example.autotradebot.service.OrderTradeService;
 import jakarta.annotation.PostConstruct;
@@ -17,7 +20,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,6 +41,15 @@ public class TradeScheduler {
 
     @Autowired
     private OrderTradeService orderTradeService;
+
+    @Autowired
+    private UserSettingMapper userSettingMapper;
+
+    @Autowired
+    private UserPositionHistoryMapper userPositionHistoryMapper;
+
+    @Autowired
+    private VendorApiKeysMapper vendorApiKeysMapper;
 
     @PostConstruct
     public void init() {
@@ -71,17 +82,18 @@ public class TradeScheduler {
 
                         logger.info("Processing symbol: {}", symbol);
 
-                        List<UserSettingDto> users = new ArrayList<>();
+                        List<UserSettingDto> users = userSettingMapper.selectAllUserSettingsBySymbol(symbol);
+
                         users.parallelStream().forEach(user -> {
                             try {
                                 logger.info("Trade Oder START for symbol: {}, user: {}", symbol, user.getEmailPk());
                                 String signalPosition = tradeSignal.getPosition();
 
-                                /**
-                                 * TODO emailPk , symbol 유저 포지션 검색 필요
-                                 * */
-                                PositionDto previousPosition = new PositionDto();
-                                VendorApiKeyDto vendorApiKeyDto = new VendorApiKeyDto();
+                                String userEmailPk = user.getEmailPk();
+
+                                UserPositionHistoryDto previousPosition = userPositionHistoryMapper.selectUserLastPositionHistoryByEmailPk(userEmailPk);
+
+                                VendorApiKeyDto vendorApiKeyDto = vendorApiKeysMapper.selectVendorApiKeyByEmailPk(userEmailPk);
 
                                 if (signalPosition.equals("WAIT")) {
                                     logger.info("Signal position is 'WAIT' for symbol: {}. No action taken, exiting method.", symbol);

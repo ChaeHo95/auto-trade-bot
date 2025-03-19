@@ -1,10 +1,12 @@
 package com.example.autotradebot.service;
 
-import com.example.autotradebot.dto.PositionDto;
 import com.example.autotradebot.dto.TradeSignalDto;
+import com.example.autotradebot.dto.UserPositionHistoryDto;
 import com.example.autotradebot.dto.UserSettingDto;
 import com.example.autotradebot.dto.VendorApiKeyDto;
 import com.example.autotradebot.exception.BinanceApiException;
+import com.example.autotradebot.mapper.UserPositionHistoryMapper;
+import com.example.autotradebot.mapper.UserSettingMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,11 +27,17 @@ public class OrderTradeService {
     @Autowired
     private BinanceService binanceService;
 
+    @Autowired
+    private UserPositionHistoryMapper userPositionHistoryMapper;
+
+    @Autowired
+    private UserSettingMapper userSettingMapper;
+
 
     public void trade(TradeSignalDto tradeSignal,
                       UserSettingDto userSettingDto,
                       VendorApiKeyDto vendorApiKeyDto,
-                      PositionDto previousPosition,
+                      UserPositionHistoryDto previousPosition,
                       Integer stepSize) {
 
         try {
@@ -38,6 +46,7 @@ public class OrderTradeService {
             String accesskey = vendorApiKeyDto.getAccessKey();
             String secretKey = vendorApiKeyDto.getSecretKey();
             BigDecimal amount = userSettingDto.getAmount();
+            String emailPk = userSettingDto.getEmailPk();
 
             logger.info("=== Trade 시작 ===");
             logger.info("심볼 [{}]에 대한 Trade 진행합니다.", symbol);
@@ -104,9 +113,7 @@ public class OrderTradeService {
             if (price == null) {
                 return;
             }
-            /**
-             * TODO emailPk , symbol 유저 이전 포지션 검색 필요
-             * */
+
             BigDecimal feeRate = new BigDecimal("0.02");
             BigDecimal leverageValue = new BigDecimal(leverage);
             BigInteger orderId = null;
@@ -167,7 +174,7 @@ public class OrderTradeService {
 
                     } else {
                         logger.info("주문 체결 완료 - 추가 작업 없음");
-                        PositionDto positionDto = new PositionDto();
+                        UserPositionHistoryDto positionDto = new UserPositionHistoryDto();
                         positionDto.setSymbol(symbol);
                         positionDto.setLeverage(leverage);
                         positionDto.setQuantity(quantity);
@@ -183,14 +190,11 @@ public class OrderTradeService {
                                     .multiply(BigDecimal.ONE.subtract(feeRate.multiply(BigDecimal.TWO)))
                                     .multiply(entryPrice)
                                     .divide(previousLeverage, 10, RoundingMode.HALF_DOWN);
-                            /**
-                             * TODO 유저 포지션 정리 시 값 업데이트 또는 히스토리 생성 필요
-                             * */
 
+                            userPositionHistoryMapper.insertUserPositionHistory(positionDto);
+                            userSettingMapper.updateUserAmountSetting(emailPk, symbol, realBalance);
                         } else {
-                            /**
-                             * TODO 유저 포지션 진입 시 값 업데이트 또는 히스토리 생성 필요
-                             * */
+                            userPositionHistoryMapper.insertUserPositionHistory(positionDto);
                         }
 
                     }
