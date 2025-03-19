@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.autotradebot.mapper.UserSettingMapper">
+
+    <resultMap id="UserSettingResultMap" type="com.example.autotradebot.dto.UserSettingDto">
+        <id property="idx" column="idx"/>
+        <result property="symbol" column="symbol"/>
+        <result property="emailPk" column="email_pk"/>
+        <result property="isActive" column="is_active"/>
+        <result property="amount" column="amount"/>
+        <result property="createdDate" column="created_date"/>
+    </resultMap>
+
+    <!-- 등록 -->
+    <insert id="insertUserSetting" parameterType="com.example.autotradebot.dto.UserSettingDto" useGeneratedKeys="true"
+            keyProperty="idx">
+        INSERT INTO user_setting_table (symbol, email_pk, is_active, amount)
+        VALUES (#{symbol}, #{emailPk}, #{isActive}, #{amount})
+    </insert>
+
+    <!-- 수정 -->
+    <update id="updateUserSetting" parameterType="com.example.autotradebot.dto.UserSettingDto">
+        UPDATE user_setting_table
+        SET symbol    = #{symbol},
+            is_active = #{isActive},
+            amount    = #{amount}
+        WHERE idx = #{idx}
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="deleteUserSettingByIdx" parameterType="int">
+        DELETE
+        FROM user_setting_table
+        WHERE idx = #{idx}
+    </delete>
+
+    <!-- 단건 조회 (idx) -->
+    <select id="selectUserSettingByIdx" parameterType="int" resultMap="UserSettingResultMap">
+        SELECT idx, symbol, email_pk, is_active, amount, created_date
+        FROM user_setting_table
+        WHERE idx = #{idx}
+    </select>
+
+    <!-- 단건 조회 (email_pk) -->
+    <select id="selectUserSettingByEmailPk" parameterType="string" resultMap="UserSettingResultMap">
+        SELECT idx, symbol, email_pk, is_active, amount, created_date
+        FROM user_setting_table
+        WHERE email_pk = #{emailPk}
+    </select>
+
+    <!-- 전체 조회 -->
+    <select id="selectAllUserSettings" resultMap="UserSettingResultMap">
+        SELECT idx, symbol, email_pk, is_active, amount, created_date
+        FROM user_setting_table
+    </select>
+</mapper>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.autotradebot.mapper.VendorApiKeysMapper">
+
+    <resultMap id="VendorApiKeyResultMap" type="com.example.autotradebot.dto.VendorApiKeyDto">
+        <id property="id" column="id"/>
+        <result property="emailPk" column="email_pk"/>
+        <result property="accessKey" column="access_key"/>
+        <result property="secretKey" column="secret_key"/>
+        <result property="status" column="status"/>
+        <result property="vendor" column="vendor"/>
+        <result property="createdDt" column="created_dt"/>
+    </resultMap>
+
+    <insert id="insertVendorApiKey" parameterType="com.example.autotradebot.dto.VendorApiKeyDto" useGeneratedKeys="true"
+            keyProperty="id">
+        INSERT INTO vendor_api_keys (email_pk, access_key, secret_key, status, vendor)
+        VALUES (#{emailPk}, #{accessKey}, #{secretKey}, #{status}, #{vendor})
+    </insert>
+
+    <update id="updateVendorApiKey" parameterType="com.example.autotradebot.dto.VendorApiKeyDto">
+        UPDATE vendor_api_keys
+        SET email_pk   = #{emailPk},
+            secret_key = #{secretKey},
+            status     = #{status},
+            vendor     = #{vendor}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteVendorApiKeyById" parameterType="long">
+        DELETE
+        FROM vendor_api_keys
+        WHERE id = #{id}
+    </delete>
+
+    <select id="selectVendorApiKeyById" parameterType="long" resultMap="VendorApiKeyResultMap">
+        SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
+        FROM vendor_api_keys
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectVendorApiKeyByAccessKey" parameterType="string" resultMap="VendorApiKeyResultMap">
+        SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
+        FROM vendor_api_keys
+        WHERE access_key = #{accessKey}
+    </select>
+
+    <select id="selectAllVendorApiKeys" resultMap="VendorApiKeyResultMap">
+        SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
+        FROM vendor_api_keys
+    </select>
+</mapper>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.autotradebot.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.example.autotradebot.dto.UserDto">
+        <id property="idx" column="idx"/>
+        <result property="email" column="email"/>
+        <result property="emailPk" column="email_pk"/>
+        <result property="name" column="name"/>
+        <result property="createdDate" column="created_date"/>
+    </resultMap>
+
+    <insert id="insertUser" parameterType="com.example.autotradebot.dto.UserDto" useGeneratedKeys="true"
+            keyProperty="idx">
+        INSERT INTO user_table (email, email_pk, name)
+        VALUES (#{email}, #{emailPk}, #{name})
+    </insert>
+
+    <update id="updateUser" parameterType="com.example.autotradebot.dto.UserDto">
+        UPDATE user_table
+        SET email = #{email},
+            name  = #{name}
+        WHERE idx = #{idx}
+    </update>
+
+    <delete id="deleteUserByIdx" parameterType="int">
+        DELETE
+        FROM user_table
+        WHERE idx = #{idx}
+    </delete>
+
+    <select id="selectUserByIdx" parameterType="int" resultMap="UserResultMap">
+        SELECT idx, email, email_pk, name, created_date
+        FROM user_table
+        WHERE idx = #{idx}
+    </select>
+
+    <select id="selectUserByEmailPk" parameterType="string" resultMap="UserResultMap">
+        SELECT idx, email, email_pk, name, created_date
+        FROM user_table
+        WHERE email_pk = #{emailPk}
+    </select>
+
+    <select id="selectAllUsers" resultMap="UserResultMap">
+        SELECT idx, email, email_pk, name, created_date
+        FROM user_table
+    </select>
+</mapper>

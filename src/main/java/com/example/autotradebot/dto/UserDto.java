@@ -5,18 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserSettingDto {
+public class UserDto {
     private Integer idx;
-    private String symbol;
+    private String email;
     private String emailPk;
-    private Integer isActive;
-    private BigDecimal amount;
+    private String name;
     private Date createdDate;
 }

@@ -12,11 +12,13 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserSettingDto {
-    private Integer idx;
-    private String symbol;
+public class UserPositionHistoryDto {
+    private Long id;
     private String emailPk;
-    private Integer isActive;
-    private BigDecimal amount;
-    private Date createdDate;
+    private String symbol;
+    private BigDecimal entryPrice;
+    private BigDecimal quantity;
+    private String position;
+    private Integer leverage;
+    private Date createdAt;
 }

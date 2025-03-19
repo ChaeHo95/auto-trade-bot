@@ -3,6 +3,7 @@ package com.example.autotradebot.service;
 import com.example.autotradebot.dto.PositionDto;
 import com.example.autotradebot.dto.TradeSignalDto;
 import com.example.autotradebot.dto.UserSettingDto;
+import com.example.autotradebot.dto.VendorApiKeyDto;
 import com.example.autotradebot.exception.BinanceApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,13 +26,17 @@ public class OrderTradeService {
     private BinanceService binanceService;
 
 
-    public void trade(TradeSignalDto tradeSignal, UserSettingDto userSettingDto, PositionDto previousPosition, Integer stepSize) {
+    public void trade(TradeSignalDto tradeSignal,
+                      UserSettingDto userSettingDto,
+                      VendorApiKeyDto vendorApiKeyDto,
+                      PositionDto previousPosition,
+                      Integer stepSize) {
 
         try {
             String symbol = tradeSignal.getSymbol();
             String orderPosition = tradeSignal.getPosition();
-            String accesskey = userSettingDto.getAccessKey();
-            String secretKey = userSettingDto.getSecretKey();
+            String accesskey = vendorApiKeyDto.getAccessKey();
+            String secretKey = vendorApiKeyDto.getSecretKey();
             BigDecimal amount = userSettingDto.getAmount();
 
             logger.info("=== Trade 시작 ===");

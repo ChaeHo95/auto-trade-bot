@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.autotradebot.mapper.UserPositionHistoryMapper">
+
+    <resultMap id="UserPositionHistoryResultMap" type="com.example.autotradebot.dto.UserPositionHistoryDto">
+        <id property="id" column="id"/>
+        <result property="emailPk" column="email_pk"/>
+        <result property="symbol" column="symbol"/>
+        <result property="entryPrice" column="entry_price"/>
+        <result property="quantity" column="quantity"/>
+        <result property="position" column="position"/>
+        <result property="leverage" column="leverage"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insertUserPositionHistory" parameterType="com.example.autotradebot.dto.UserPositionHistoryDto"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_position_history (email_pk, symbol, entry_price, quantity, position, leverage)
+        VALUES (#{emailPk}, #{symbol}, #{entryPrice}, #{quantity}, #{position}, #{leverage})
+    </insert>
+
+    <update id="updateUserPositionHistory" parameterType="com.example.autotradebot.dto.UserPositionHistoryDto">
+        UPDATE user_position_history
+        SET email_pk    = #{emailPk},
+            symbol      = #{symbol},
+            entry_price = #{entryPrice},
+            quantity    = #{quantity},
+            position    = #{position},
+            leverage    = #{leverage}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteUserPositionHistoryById" parameterType="long">
+        DELETE
+        FROM user_position_history
+        WHERE id = #{id}
+    </delete>
+
+    <select id="selectUserPositionHistoryById" parameterType="long" resultMap="UserPositionHistoryResultMap">
+        SELECT id,
+               email_pk,
+               symbol,
+               entry_price,
+               quantity,
+               position,
+               leverage,
+               created_at
+        FROM user_position_history
+        WHERE id = #{id}
+    </select>
+
+    <select id="selectUserPositionHistoriesByEmailPk" parameterType="string" resultMap="UserPositionHistoryResultMap">
+        SELECT id,
+               email_pk,
+               symbol,
+               entry_price,
+               quantity,
+               position,
+               leverage,
+               created_at
+        FROM user_position_history
+        WHERE email_pk = #{emailPk}
+    </select>
+
+    <select id="selectAllUserPositionHistories" resultMap="UserPositionHistoryResultMap">
+        SELECT id,
+               email_pk,
+               symbol,
+               entry_price,
+               quantity,
+               position,
+               leverage,
+               created_at
+        FROM user_position_history
+    </select>
+</mapper>

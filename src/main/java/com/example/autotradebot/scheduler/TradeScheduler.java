@@ -3,6 +3,7 @@ package com.example.autotradebot.scheduler;
 import com.example.autotradebot.dto.PositionDto;
 import com.example.autotradebot.dto.TradeSignalDto;
 import com.example.autotradebot.dto.UserSettingDto;
+import com.example.autotradebot.dto.VendorApiKeyDto;
 import com.example.autotradebot.exception.BinanceApiException;
 import com.example.autotradebot.manager.TradeSignalCacheManager;
 import com.example.autotradebot.service.BinanceService;
@@ -80,6 +81,7 @@ public class TradeScheduler {
                                  * TODO emailPk , symbol 유저 포지션 검색 필요
                                  * */
                                 PositionDto previousPosition = new PositionDto();
+                                VendorApiKeyDto vendorApiKeyDto = new VendorApiKeyDto();
 
                                 if (signalPosition.equals("WAIT")) {
                                     logger.info("Signal position is 'WAIT' for symbol: {}. No action taken, exiting method.", symbol);
@@ -96,7 +98,7 @@ public class TradeScheduler {
                                     return;
                                 }
 
-                                orderTradeService.trade(tradeSignal, user, previousPosition, stepSize);
+                                orderTradeService.trade(tradeSignal, user, vendorApiKeyDto, previousPosition, stepSize);
 
                                 logger.info("Trade Oder END for symbol: {}", symbol);
                             } catch (BinanceApiException e) {
