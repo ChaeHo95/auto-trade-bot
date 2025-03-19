@@ -48,6 +48,19 @@ public class OrderTradeService {
             BigDecimal amount = userSettingDto.getAmount();
             String emailPk = userSettingDto.getEmailPk();
 
+            if (previousPosition != null && previousPosition.getPosition().equals(orderPosition)) {
+                logger.info("이미 동일한 포지션이 캐시에 존재합니다. symbol: {}, position: {}", symbol, orderPosition);
+                return;
+            } else if (previousPosition != null) {
+                String currentPosition = previousPosition.getPosition();
+                if ("LONG".equals(orderPosition) && "SHORT".equals(currentPosition)) {
+                    orderPosition = "EXIT";
+                }
+                if ("SHORT".equals(orderPosition) && "LONG".equals(currentPosition)) {
+                    orderPosition = "EXIT";
+                }
+            }
+
             logger.info("=== Trade 시작 ===");
             logger.info("심볼 [{}]에 대한 Trade 진행합니다.", symbol);
 
