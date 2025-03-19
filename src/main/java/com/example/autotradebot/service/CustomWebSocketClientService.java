@@ -1,6 +1,8 @@
 package com.example.autotradebot.service;
 
 import com.example.autotradebot.config.EnvConfig;
+import com.example.autotradebot.dto.TradeSignalDto;
+import com.example.autotradebot.manager.TradeSignalCacheManager;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +23,6 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -36,6 +37,9 @@ public class CustomWebSocketClientService {
 
     @Autowired
     private EnvConfig envConfig;
+
+    @Autowired
+    private TradeSignalCacheManager tradeSignalCacheManager;
 
     private WebSocketStompClient stompClient;
     private StompSession stompSession;
@@ -87,12 +91,14 @@ public class CustomWebSocketClientService {
                 session.subscribe("/topic/positions", new StompFrameHandler() {
                     @Override
                     public Type getPayloadType(StompHeaders headers) {
-                        return Map.class; // 필요에 따라 DTO 타입 지정 가능
+                        return TradeSignalDto.class; // 필요에 따라 DTO 타입 지정 가능
                     }
 
                     @Override
                     public void handleFrame(StompHeaders headers, Object payload) {
                         logger.info("📩 수신한 메시지: {}", payload);
+                        TradeSignalDto tradeSignalDto = (TradeSignalDto) payload;
+                        tradeSignalCacheManager.putPosition(tradeSignalDto.getSymbol(), tradeSignalDto);
                         // 메시지 처리 로직 추가
                     }
                 });
