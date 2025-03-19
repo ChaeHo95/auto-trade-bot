@@ -82,21 +82,16 @@ public class OrderTradeService {
                     price = current;
                 }
             } else if (orderPosition.equals("EXIT")) {
-                /**
-                 * TODO emailPk , symbol 유저 이전 포지션 검색 필요
-                 * */
-                PositionDto positionDto = new PositionDto();
-                if (positionDto != null) {
-                    String prevPosition = positionDto.getPosition();
+                if (previousPosition != null) {
+                    String prevPosition = previousPosition.getPosition();
 
                     if (prevPosition.equals("LONG")) {
                         price = new BigDecimal(asks.get(2).get(0));
-                        isClose = true;
                     } else if (prevPosition.equals("SHORT")) {
                         price = new BigDecimal(bids.get(2).get(0));
-                        isClose = true;
                     }
 
+                    isClose = true;
                 }
 
             }

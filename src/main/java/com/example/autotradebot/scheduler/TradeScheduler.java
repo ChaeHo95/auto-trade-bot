@@ -80,12 +80,13 @@ public class TradeScheduler {
                                  * TODO emailPk , symbol 유저 포지션 검색 필요
                                  * */
                                 PositionDto previousPosition = new PositionDto();
+
                                 if (signalPosition.equals("WAIT")) {
                                     logger.info("Signal position is 'WAIT' for symbol: {}. No action taken, exiting method.", symbol);
                                     return;
                                 }
 
-                                if (signalPosition.equals("EXIT") && previousPosition == null) {
+                                if (signalPosition.equals("EXIT") && (previousPosition == null || "EXIT".equals(previousPosition.getPosition()))) {
                                     logger.info("Symbol: {} has no cached position, but signal position is 'EXIT'. Exiting method.", symbol);
                                     return;
                                 }
