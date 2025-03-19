@@ -98,7 +98,7 @@ public class CustomWebSocketClientService {
                     public void handleFrame(StompHeaders headers, Object payload) {
                         logger.info("📩 수신한 메시지: {}", payload);
                         TradeSignalDto tradeSignalDto = (TradeSignalDto) payload;
-                        tradeSignalCacheManager.putPosition(tradeSignalDto.getSymbol(), tradeSignalDto);
+                        tradeSignalCacheManager.putTradeSignal(tradeSignalDto.getSymbol(), tradeSignalDto);
                         // 메시지 처리 로직 추가
                     }
                 });

@@ -44,3 +44,6 @@ mybatis:
 
 dotenv:
   enabled: true
+
+scheduling:
+  trade: true

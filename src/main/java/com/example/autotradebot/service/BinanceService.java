@@ -80,7 +80,7 @@ public class BinanceService {
      * @param leverage 설정할 레버리지 (1 ~ 125)
      * @return 설정 결과 응답 (Mono<String>)
      */
-    public Mono<String> setLeverage(String symbol, int leverage, String accesskey, String secretKey) {
+    public Mono<String> setLeverage(String symbol, BigInteger leverage, String accesskey, String secretKey) {
         String endpoint = "/fapi/v1/leverage";
         long timestamp = getBinanceServerTime();
 
