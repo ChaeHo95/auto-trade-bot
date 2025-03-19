@@ -52,6 +52,11 @@ public class EnvConfig {
         return getEnvVariable("WEB_SOCKET_URL");
     }
 
+    @Bean
+    public String getBinanceApiEndpoint() {
+        return getEnvVariable("BINANCE_API_ENDPOINT");
+    }
+
 
     private String getEnvVariable(String key) {
         String value = dotenv.get(key);
