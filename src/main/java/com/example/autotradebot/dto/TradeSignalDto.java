@@ -1,5 +1,6 @@
 package com.example.autotradebot.dto;
 
+import com.example.autotradebot.enums.TradePosition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,12 +14,8 @@ import java.math.BigInteger;
 @AllArgsConstructor
 @Builder
 public class TradeSignalDto {
-    // 거래 종목 (예: "XRPUSDT")
-    private String symbol;
-    // 포지션 진입 가격
-    private BigDecimal entryPrice;
-    // 현재 포지션
-    private String position;
-    // 현재 레버리지
-    private BigInteger leverage;
+    private String symbol;              // 거래 종목 (예: "XRPUSDT")
+    private BigDecimal entryPrice;      // 포지션 진입 가격
+    private TradePosition position;     // 현재 포지션
+    private BigInteger leverage;        // 현재 레버리지
 }

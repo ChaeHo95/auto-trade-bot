@@ -1,6 +1,7 @@
 package com.example.autotradebot.service;
 
 import com.example.autotradebot.config.BinanceConfig;
+import com.example.autotradebot.enums.TradePosition;
 import com.example.autotradebot.exception.BinanceApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -146,16 +147,16 @@ public class BinanceService {
     }
 
     // 주문 진입
-    public BigInteger openOrder(String symbol, BigDecimal quantity, BigDecimal price, String position, String accesskey, String secretKey) {
+    public BigInteger openOrder(String symbol, BigDecimal quantity, BigDecimal price, TradePosition position, String accesskey, String secretKey) {
         Map<String, Object> params = new HashMap<>();
         params.put("symbol", symbol);
         params.put("quantity", quantity);
         params.put("price", price);
         params.put("reduceOnly", "false");
 
-        if ("LONG".equals(position)) {
+        if (TradePosition.LONG.equals(position)) {
             params.put("side", "BUY");
-        } else if ("SHORT".equals(position)) {
+        } else if (TradePosition.SHORT.equals(position)) {
             params.put("side", "SELL");
         } else {
             return null;
@@ -172,16 +173,16 @@ public class BinanceService {
     }
 
     // 주문 종료
-    public BigInteger closeOrder(String symbol, BigDecimal quantity, BigDecimal price, String position, String accesskey, String secretKey) {
+    public BigInteger closeOrder(String symbol, BigDecimal quantity, BigDecimal price, TradePosition position, String accesskey, String secretKey) {
         Map<String, Object> params = new HashMap<>();
         params.put("symbol", symbol);
         params.put("quantity", quantity);
         params.put("price", price);
         params.put("reduceOnly", "true");
 
-        if ("LONG".equals(position)) {
+        if (TradePosition.LONG.equals(position)) {
             params.put("side", "SELL");
-        } else if ("SHORT".equals(position)) {
+        } else if (TradePosition.SHORT.equals(position)) {
             params.put("side", "BUY");
         } else {
             return null;

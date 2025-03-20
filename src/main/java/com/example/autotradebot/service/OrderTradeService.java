@@ -1,12 +1,12 @@
 package com.example.autotradebot.service;
 
-import com.example.autotradebot.dto.TradeSignalDto;
-import com.example.autotradebot.dto.UserPositionHistoryDto;
-import com.example.autotradebot.dto.UserSettingDto;
-import com.example.autotradebot.dto.VendorApiKeyDto;
+import com.example.autotradebot.dto.*;
+import com.example.autotradebot.enums.OrderState;
+import com.example.autotradebot.enums.TradePosition;
 import com.example.autotradebot.exception.BinanceApiException;
 import com.example.autotradebot.mapper.UserPositionHistoryMapper;
 import com.example.autotradebot.mapper.UserSettingMapper;
+import com.example.autotradebot.mapper.UserTradeProcessMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +33,9 @@ public class OrderTradeService {
     @Autowired
     private UserSettingMapper userSettingMapper;
 
+    @Autowired
+    private UserTradeProcessMapper userTradeProcessMapper;
+
 
     public void trade(TradeSignalDto tradeSignal,
                       UserSettingDto userSettingDto,
@@ -42,7 +45,7 @@ public class OrderTradeService {
 
         try {
             String symbol = tradeSignal.getSymbol();
-            String orderPosition = tradeSignal.getPosition();
+            TradePosition orderPosition = tradeSignal.getPosition();
             String accesskey = vendorApiKeyDto.getAccessKey();
             String secretKey = vendorApiKeyDto.getSecretKey();
             BigDecimal amount = userSettingDto.getAmount();
@@ -52,14 +55,15 @@ public class OrderTradeService {
                 logger.info("이미 동일한 포지션이 캐시에 존재합니다. symbol: {}, position: {}", symbol, orderPosition);
                 return;
             } else if (previousPosition != null) {
-                String currentPosition = previousPosition.getPosition();
-                if ("LONG".equals(orderPosition) && "SHORT".equals(currentPosition)) {
-                    orderPosition = "EXIT";
+                TradePosition currentPosition = previousPosition.getPosition();
+                if (TradePosition.LONG.equals(orderPosition) && TradePosition.SHORT.equals(currentPosition)) {
+                    orderPosition = TradePosition.EXIT;
                 }
-                if ("SHORT".equals(orderPosition) && "LONG".equals(currentPosition)) {
-                    orderPosition = "EXIT";
+                if (TradePosition.SHORT.equals(orderPosition) && TradePosition.LONG.equals(currentPosition)) {
+                    orderPosition = TradePosition.EXIT;
                 }
             }
+
 
             logger.info("=== Trade 시작 ===");
             logger.info("심볼 [{}]에 대한 Trade 진행합니다.", symbol);
@@ -69,7 +73,7 @@ public class OrderTradeService {
             BigDecimal balance = binanceService.getAvailableBalance(asset, accesskey, secretKey);
             logger.info("현재 잔고: {} {}", balance, asset);
 
-            if (!"EXIT".equals(orderPosition) && balance.compareTo(amount) < 0) {
+            if (!TradePosition.EXIT.equals(orderPosition) && balance.compareTo(amount) < 0) {
                 logger.info("현재 잔고 부족: {} {}", balance, asset);
                 return;
             }
@@ -77,7 +81,7 @@ public class OrderTradeService {
             BigInteger leverage = BigInteger.ONE;
             BigInteger tradeLeverage = tradeSignal.getLeverage();
 
-            if (tradeLeverage != null && !"EXIT".equals(orderPosition)) {
+            if (tradeLeverage != null && !TradePosition.EXIT.equals(orderPosition)) {
                 logger.info("레버리지 설정 중: {} 배", tradeLeverage);
                 binanceService.setLeverage(symbol, tradeLeverage, accesskey, secretKey).block();
                 leverage = tradeLeverage;
@@ -98,23 +102,23 @@ public class OrderTradeService {
 
             boolean isClose = false;
 
-            if (orderPosition.equals("LONG")) {
+            if (orderPosition.equals(TradePosition.LONG)) {
                 BigDecimal current = new BigDecimal(bids.get(2).get(0));
                 if (price.compareTo(current) > 0) {
                     price = current;
                 }
-            } else if (orderPosition.equals("SHORT")) {
+            } else if (orderPosition.equals(TradePosition.SHORT)) {
                 BigDecimal current = new BigDecimal(asks.get(2).get(0));
                 if (price.compareTo(current) < 0) {
                     price = current;
                 }
-            } else if (orderPosition.equals("EXIT")) {
+            } else if (orderPosition.equals(TradePosition.EXIT)) {
                 if (previousPosition != null) {
-                    String prevPosition = previousPosition.getPosition();
+                    TradePosition prevPosition = previousPosition.getPosition();
 
-                    if (prevPosition.equals("LONG")) {
+                    if (prevPosition.equals(TradePosition.LONG)) {
                         price = new BigDecimal(asks.get(2).get(0));
-                    } else if (prevPosition.equals("SHORT")) {
+                    } else if (prevPosition.equals(TradePosition.SHORT)) {
                         price = new BigDecimal(bids.get(2).get(0));
                     }
 
@@ -153,14 +157,59 @@ public class OrderTradeService {
 
             logger.info("포지션 주문 요청 중: 심볼={}, 수량={}, 가격={}, 포지션 타입={}", symbol, quantity, price, orderPosition);
 
+            logger.info("=== Trade 종료 ===");
+
             if (orderId == null) {
                 return;
             }
 
+            UserTradeProcessDto dto = new UserTradeProcessDto();
+            dto.setSymbol(symbol);
+            dto.setOrderId(orderId);
+            dto.setOrderState(OrderState.NEW);
+            dto.setEntryPrice(price);
+            dto.setQuantity(quantity);
+            dto.setPosition(orderPosition);
+            dto.setLeverage(leverage);
+            dto.setEmailPk(emailPk);
+
+            userTradeProcessMapper.insertUserTradeProcess(dto);
+
+        } catch (
+                BinanceApiException e) {
+            throw new BinanceApiException(e.getMessage());
+        } catch (
+                Exception e) {
+            logger.error("TRADE  도중 예외 발생");
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    public void checkOrderStatus(
+            UserTradeProcessDto userTradeProcessDto,
+            VendorApiKeyDto vendorApiKeyDto
+    ) {
+        BigDecimal feeRate = new BigDecimal("0.02");
+        String accesskey = vendorApiKeyDto.getAccessKey();
+        String secretKey = vendorApiKeyDto.getSecretKey();
+        String emailPk = userTradeProcessDto.getEmailPk();
+        BigInteger orderId = userTradeProcessDto.getOrderId();
+        String symbol = userTradeProcessDto.getSymbol();
+        BigInteger leverage = userTradeProcessDto.getLeverage();
+        BigDecimal quantity = userTradeProcessDto.getQuantity();
+        BigDecimal price = userTradeProcessDto.getEntryPrice();
+        TradePosition position = userTradeProcessDto.getPosition();
+        Integer id = userTradeProcessDto.getId();
+        // 처리 여부 (0:미처리, 1:처리, 2:진행중)
+        userTradeProcessMapper.updateUserTradeProcess(id, 1);
+
+        try {
             logger.info("포지션 주문 응답: orderId={}", orderId);
 
             int maxRetries = 5;
             int retryCount = 0;
+
             while (retryCount < maxRetries) {
                 try {
 
@@ -188,15 +237,15 @@ public class OrderTradeService {
                     } else {
                         logger.info("주문 체결 완료 - 추가 작업 없음");
                         UserPositionHistoryDto positionDto = new UserPositionHistoryDto();
-                        positionDto.setEmailPk(userSettingDto.getEmailPk());
+                        positionDto.setEmailPk(emailPk);
                         positionDto.setSymbol(symbol);
                         positionDto.setLeverage(leverage);
                         positionDto.setQuantity(quantity);
                         positionDto.setEntryPrice(price);
-                        positionDto.setPosition(orderPosition);
+                        positionDto.setPosition(position);
 
-                        if (orderPosition.equals("EXIT")) {
-                            String previousLeverageString = previousPosition.getLeverage().toString();
+                        if (position.equals(TradePosition.EXIT)) {
+                            String previousLeverageString = leverage.toString();
                             BigDecimal previousLeverage = new BigDecimal(previousLeverageString);
                             BigDecimal entryPrice = positionDto.getEntryPrice();
 
@@ -205,12 +254,12 @@ public class OrderTradeService {
                                     .multiply(entryPrice)
                                     .divide(previousLeverage, 10, RoundingMode.HALF_DOWN);
 
-                            userPositionHistoryMapper.insertUserPositionHistory(positionDto);
                             userSettingMapper.updateUserAmountSetting(emailPk, symbol, realBalance);
-                        } else {
-                            userPositionHistoryMapper.insertUserPositionHistory(positionDto);
                         }
 
+                        userPositionHistoryMapper.insertUserPositionHistory(positionDto);
+
+                        userTradeProcessMapper.deleteUserTradeProcessById(id);
                     }
                     break;
                 } catch (BinanceApiException e) {
@@ -229,13 +278,9 @@ public class OrderTradeService {
                     }
                 }
             }
-
-            logger.info("=== Trade 종료 ===");
-
         } catch (BinanceApiException e) {
             throw new BinanceApiException(e.getMessage());
         } catch (Exception e) {
-            logger.error("TRADE  도중 예외 발생");
             throw new RuntimeException(e);
         }
     }

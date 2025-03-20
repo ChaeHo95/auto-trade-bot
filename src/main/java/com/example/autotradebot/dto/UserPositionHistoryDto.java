@@ -1,5 +1,6 @@
 package com.example.autotradebot.dto;
 
+import com.example.autotradebot.enums.TradePosition;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +20,7 @@ public class UserPositionHistoryDto {
     private String symbol;
     private BigDecimal entryPrice;
     private BigDecimal quantity;
-    private String position;
+    private TradePosition position;
     private BigInteger leverage;
     private Date createdAt;
 }

@@ -1,13 +1,12 @@
 package com.example.autotradebot.scheduler;
 
-import com.example.autotradebot.dto.TradeSignalDto;
-import com.example.autotradebot.dto.UserPositionHistoryDto;
-import com.example.autotradebot.dto.UserSettingDto;
-import com.example.autotradebot.dto.VendorApiKeyDto;
+import com.example.autotradebot.dto.*;
+import com.example.autotradebot.enums.TradePosition;
 import com.example.autotradebot.exception.BinanceApiException;
 import com.example.autotradebot.manager.TradeSignalCacheManager;
 import com.example.autotradebot.mapper.UserPositionHistoryMapper;
 import com.example.autotradebot.mapper.UserSettingMapper;
+import com.example.autotradebot.mapper.UserTradeProcessMapper;
 import com.example.autotradebot.mapper.VendorApiKeysMapper;
 import com.example.autotradebot.service.BinanceService;
 import com.example.autotradebot.service.OrderTradeService;
@@ -31,7 +30,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class TradeScheduler {
     private Logger logger = LoggerFactory.getLogger(TradeScheduler.class);
     private final ConcurrentHashMap<String, Integer> symbolStepSizeCache = new ConcurrentHashMap<>();
-    private final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock tradeLock = new ReentrantLock();
+    private final ReentrantLock tradeCheckLock = new ReentrantLock();
 
     @Autowired
     private BinanceService binanceService;
@@ -51,6 +51,9 @@ public class TradeScheduler {
     @Autowired
     private VendorApiKeysMapper vendorApiKeysMapper;
 
+    @Autowired
+    private UserTradeProcessMapper userTradeProcessMapper;
+
     @PostConstruct
     public void init() {
         try {
@@ -66,7 +69,7 @@ public class TradeScheduler {
 
     @Scheduled(fixedDelay = 10000, initialDelay = 10000)
     public void processTradeOder() {
-        lock.lock();
+        tradeLock.lock();
         try {
             tradeSignalCacheManager.getAllTradeSignals()
                     .entrySet()
@@ -86,21 +89,27 @@ public class TradeScheduler {
 
                         users.parallelStream().forEach(user -> {
                             try {
-                                logger.info("Trade Oder START for symbol: {}, user: {}", symbol, user.getEmailPk());
-                                String signalPosition = tradeSignal.getPosition();
+                                String emailPk = user.getEmailPk();
+                                UserTradeProcessDto userTradeProcessDto = userTradeProcessMapper.selectUserTradeProcessByEmailPkWithSymbol(emailPk, symbol);
 
-                                String userEmailPk = user.getEmailPk();
+                                if (userTradeProcessDto != null) {
+                                    logger.info("Trade for symbol: {} is currently in progress for user: {}", symbol, emailPk);
+                                    return;
+                                }
 
-                                UserPositionHistoryDto previousPosition = userPositionHistoryMapper.selectUserLastPositionHistoryByEmailPk(userEmailPk);
+                                logger.info("Trade Oder START for symbol: {}, user: {}", symbol, emailPk);
+                                TradePosition signalPosition = tradeSignal.getPosition();
 
-                                VendorApiKeyDto vendorApiKeyDto = vendorApiKeysMapper.selectVendorApiKeyByEmailPk(userEmailPk);
+                                UserPositionHistoryDto previousPosition = userPositionHistoryMapper.selectUserLastPositionHistoryByEmailPk(emailPk);
 
-                                if (signalPosition.equals("WAIT")) {
+                                VendorApiKeyDto vendorApiKeyDto = vendorApiKeysMapper.selectVendorApiKeyByEmailPk(emailPk);
+
+                                if (signalPosition.equals(TradePosition.WAIT)) {
                                     logger.info("Signal position is 'WAIT' for symbol: {}. No action taken, exiting method.", symbol);
                                     return;
                                 }
 
-                                if (signalPosition.equals("EXIT") && (previousPosition == null || "EXIT".equals(previousPosition.getPosition()))) {
+                                if (signalPosition.equals(TradePosition.EXIT) && (previousPosition == null || TradePosition.EXIT.equals(previousPosition.getPosition()))) {
                                     logger.info("Symbol: {} has no cached position, but signal position is 'EXIT'. Exiting method.", symbol);
                                     return;
                                 }
@@ -123,7 +132,45 @@ public class TradeScheduler {
                         });
                     });
         } finally {
-            lock.unlock();
+            tradeLock.unlock();
+        }
+    }
+
+    @Scheduled(fixedDelay = 10000, initialDelay = 10000)
+    public void processTradeOderCheck() {
+        tradeCheckLock.lock();
+        try {
+            tradeSignalCacheManager.getAllTradeSignals()
+                    .entrySet()
+                    .parallelStream()
+                    .forEach(entry -> {
+                        String symbol = entry.getKey();
+
+                        logger.info("Processing Trade Oder Check Symbol: {}", symbol);
+
+                        List<UserTradeProcessDto> userTradeProcessDtos = userTradeProcessMapper.selectAllUserTradeProcesses(symbol);
+
+                        userTradeProcessDtos.parallelStream().forEach(order -> {
+                            try {
+                                String emailPk = order.getEmailPk();
+                                logger.info("Trade Oder START for symbol: {}, user: {}", symbol, emailPk);
+
+                                VendorApiKeyDto vendorApiKeyDto = vendorApiKeysMapper.selectVendorApiKeyByEmailPk(emailPk);
+
+                                orderTradeService.checkOrderStatus(order, vendorApiKeyDto);
+
+                                logger.info("Trade Oder Check END for symbol: {}", symbol);
+                            } catch (BinanceApiException e) {
+                                logger.error(e.getMessage());
+                            } catch (Exception e) {
+                                logger.error("Trade Oder Check 도중 예외 발생");
+                                logger.error(e.getMessage(), e);
+                            }
+
+                        });
+                    });
+        } finally {
+            tradeCheckLock.unlock();
         }
     }
 }

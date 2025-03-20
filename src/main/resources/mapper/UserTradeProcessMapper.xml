@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.autotradebot.mapper.UserTradeProcessMapper">
+
+    <!-- 결과 매핑 -->
+    <resultMap id="UserTradeProcessResultMap" type="com.example.autotradebot.dto.UserTradeProcessDto">
+        <id property="id" column="id"/>
+        <result property="symbol" column="symbol"/>
+        <result property="orderId" column="order_id"/>
+        <result property="orderState" column="order_state"/>
+        <result property="entryPrice" column="entry_price"/>
+        <result property="quantity" column="quantity"/>
+        <result property="position" column="position"/>
+        <result property="leverage" column="leverage"/>
+        <result property="emailPk" column="email_pk"/>
+        <result property="isProcess" column="is_process"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 등록 -->
+    <insert id="insertUserTradeProcess" parameterType="com.example.autotradebot.dto.UserTradeProcessDto">
+        INSERT INTO user_trade_process_table (symbol, order_id, order_state, entry_price, quantity, position, leverage,
+                                              email_pk, is_process)
+        VALUES (#{symbol}, #{orderId}, #{orderState}, #{entryPrice}, #{quantity}, #{position}, #{leverage}, #{emailPk},
+                #{isProcess})
+    </insert>
+
+    <!-- 수정 -->
+    <update id="updateUserTradeProcess" parameterType="com.example.autotradebot.dto.UserTradeProcessDto">
+        UPDATE user_trade_process_table
+        SET is_process = #{isProcess}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="deleteUserTradeProcessById" parameterType="int">
+        DELETE
+        FROM user_trade_process_table
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 단건 조회 (select by id) -->
+    <select id="selectUserTradeProcessByEmailPkWithSymbol" parameterType="int" resultMap="UserTradeProcessResultMap">
+        SELECT id,
+               symbol,
+               order_id,
+               order_state,
+               entry_price,
+               quantity,
+               position,
+               leverage,
+               email_pk,
+               is_process,
+               created_at
+        FROM user_trade_process_table
+        WHERE symbol = #{symbol}
+          AND email_pk = #{emailPk}
+        ORDER BY created_at DESC LIMIT 1;
+    </select>
+
+    <!-- 전체 조회 (select all) -->
+    <select id="selectAllUserTradeProcesses" resultMap="UserTradeProcessResultMap">
+        SELECT id,
+               symbol,
+               order_id,
+               order_state,
+               entry_price,
+               quantity,
+               position,
+               leverage,
+               email_pk,
+               is_process,
+               created_at
+        FROM user_trade_process_table
+        WHERE is_process = 0
+          AND symbol = #{symbol}
+    </select>
+
+</mapper>
