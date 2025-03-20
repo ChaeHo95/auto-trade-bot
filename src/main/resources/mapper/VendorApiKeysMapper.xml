@@ -16,12 +16,12 @@
 
     <insert id="insertVendorApiKey" parameterType="com.example.autotradebot.dto.VendorApiKeyDto" useGeneratedKeys="true"
             keyProperty="id">
-        INSERT INTO vendor_api_keys (email_pk, access_key, secret_key, status, vendor)
+        INSERT INTO user_vendor_api_keys (email_pk, access_key, secret_key, status, vendor)
         VALUES (#{emailPk}, #{accessKey}, #{secretKey}, #{status}, #{vendor})
     </insert>
 
     <update id="updateVendorApiKey" parameterType="com.example.autotradebot.dto.VendorApiKeyDto">
-        UPDATE vendor_api_keys
+        UPDATE user_vendor_api_keys
         SET email_pk   = #{emailPk},
             secret_key = #{secretKey},
             status     = #{status},
@@ -31,24 +31,24 @@
 
     <delete id="deleteVendorApiKeyById" parameterType="long">
         DELETE
-        FROM vendor_api_keys
+        FROM user_vendor_api_keys
         WHERE id = #{id}
     </delete>
 
     <select id="selectVendorApiKeyById" parameterType="long" resultMap="VendorApiKeyResultMap">
         SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
-        FROM vendor_api_keys
+        FROM user_vendor_api_keys
         WHERE id = #{id}
     </select>
 
     <select id="selectVendorApiKeyByEmailPk" parameterType="string" resultMap="VendorApiKeyResultMap">
         SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
-        FROM vendor_api_keys
+        FROM user_vendor_api_keys
         WHERE email_pk = #{emailPk}
     </select>
 
     <select id="selectAllVendorApiKeys" resultMap="VendorApiKeyResultMap">
         SELECT id, email_pk, access_key, secret_key, status, vendor, created_dt
-        FROM vendor_api_keys
+        FROM user_vendor_api_keys
     </select>
 </mapper>
